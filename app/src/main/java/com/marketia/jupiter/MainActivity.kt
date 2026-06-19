@@ -14,9 +14,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.marketia.jupiter.ui.navigation.BottomNavItem
-import com.marketia.jupiter.ui.screens.dashboard.DashboardScreen
-import com.marketia.jupiter.ui.screens.habits.HabitsScreen
-import com.marketia.jupiter.ui.screens.profile.ProfileScreen
+import com.marketia.jupiter.ui.screens.memory.MemoryScreen
+import com.marketia.jupiter.ui.screens.nucleus.NucleusScreen
+import com.marketia.jupiter.ui.screens.skills.SkillsScreen
 import com.marketia.jupiter.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -39,7 +39,7 @@ private fun JupiterScaffold() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val items = listOf(BottomNavItem.Dashboard, BottomNavItem.Habits, BottomNavItem.Profile)
+    val items = listOf(BottomNavItem.Nucleus, BottomNavItem.Skills, BottomNavItem.Memory)
 
     Scaffold(
         bottomBar = {
@@ -70,12 +70,12 @@ private fun JupiterScaffold() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = BottomNavItem.Dashboard.route,
+            startDestination = BottomNavItem.Nucleus.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(BottomNavItem.Dashboard.route) { DashboardScreen() }
-            composable(BottomNavItem.Habits.route)    { HabitsScreen() }
-            composable(BottomNavItem.Profile.route)   { ProfileScreen() }
+            composable(BottomNavItem.Nucleus.route) { NucleusScreen() }
+            composable(BottomNavItem.Skills.route)  { SkillsScreen() }
+            composable(BottomNavItem.Memory.route)  { MemoryScreen() }
         }
     }
 }

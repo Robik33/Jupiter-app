@@ -17,10 +17,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): JupiterDatabase =
-        Room.databaseBuilder(ctx, JupiterDatabase::class.java, "jupiter.db").build()
+        Room.databaseBuilder(ctx, JupiterDatabase::class.java, "jupiter.db")
+            .fallbackToDestructiveMigration()
+            .build()
 
-    @Provides fun provideStatDao(db: JupiterDatabase) = db.statDao()
-    @Provides fun provideHabitDao(db: JupiterDatabase) = db.habitDao()
-    @Provides fun provideMissionDao(db: JupiterDatabase) = db.missionDao()
-    @Provides fun provideProgressDao(db: JupiterDatabase) = db.progressDao()
+    @Provides fun provideSkillDao(db: JupiterDatabase)   = db.skillDao()
+    @Provides fun provideLinkDao(db: JupiterDatabase)    = db.linkDao()
+    @Provides fun provideProjectDao(db: JupiterDatabase) = db.projectDao()
+    @Provides fun provideSystemDao(db: JupiterDatabase)  = db.systemDao()
+    @Provides fun provideAgentDao(db: JupiterDatabase)   = db.agentDao()
 }

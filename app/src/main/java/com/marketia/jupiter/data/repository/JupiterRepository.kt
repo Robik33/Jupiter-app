@@ -8,58 +8,61 @@ import javax.inject.Singleton
 
 @Singleton
 class JupiterRepository @Inject constructor(
-    private val statDao: StatDao,
-    private val habitDao: HabitDao,
-    private val missionDao: MissionDao,
-    private val progressDao: ProgressDao
+    val skillDao: SkillDao,
+    val linkDao: LinkDao,
+    val projectDao: ProjectDao,
+    val systemDao: SystemDao,
+    val agentDao: AgentDao
 ) {
-    val stats: Flow<List<StatEntity>> = statDao.getAll()
-    val habits: Flow<List<HabitEntity>> = habitDao.getAll()
-    val missions: Flow<List<MissionEntity>> = missionDao.getAll()
-    val progress: Flow<UserProgressEntity?> = progressDao.get()
+    val skills: Flow<List<SkillEntity>> = skillDao.getAll()
+    val links: Flow<List<LinkEntity>> = linkDao.getAll()
+    val projects: Flow<List<ProjectEntity>> = projectDao.getAll()
+    val systems: Flow<List<SystemEntity>> = systemDao.getAll()
+    val agents: Flow<List<AgentEntity>> = agentDao.getAll()
 
     suspend fun seedIfEmpty() {
-        if (statDao.count() == 0) {
-            statDao.insertAll(listOf(
-                StatEntity("fuerza",       "Fuerza",       65),
-                StatEntity("velocidad",    "Velocidad",    45),
-                StatEntity("agilidad",     "Agilidad",     70),
-                StatEntity("resistencia",  "Resistencia",  55),
-                StatEntity("elasticidad",  "Elasticidad",  40),
-                StatEntity("consciencia",  "Consciencia",  80)
-            ))
-        }
-        if (habitDao.count() == 0) {
-            habitDao.insertAll(listOf(
-                HabitEntity(name = "Meditación 10 min",  icon = "🧘", completed = true,  streak = 7),
-                HabitEntity(name = "Ejercicio 30 min",   icon = "💪", completed = false, streak = 3),
-                HabitEntity(name = "Leer 20 páginas",    icon = "📖", completed = true,  streak = 12),
-                HabitEntity(name = "Hidratación 2L",     icon = "💧", completed = false, streak = 5)
-            ))
-        }
-        if (missionDao.count() == 0) {
-            val today = java.time.LocalDate.now().toString()
-            missionDao.insertAll(listOf(
-                MissionEntity(title = "Completar 3 hábitos",      description = "Termina tus hábitos del día",     expReward = 50, completed = false, date = today),
-                MissionEntity(title = "Meditación matutina",      description = "10 minutos de mindfulness",        expReward = 30, completed = true,  date = today),
-                MissionEntity(title = "Entrenamiento de fuerza",  description = "Rutina completa de 30 min",        expReward = 40, completed = false, date = today)
-            ))
-        }
-        if (progressDao.count() == 0) {
-            progressDao.insert(UserProgressEntity(
-                name = "Guerrero",
-                level = 7,
-                currentExp = 340,
-                maxExp = 500
+        if (skillDao.count() == 0) {
+            skillDao.insertAll(listOf(
+                SkillEntity(name = "SKILL SALUD",          category = "salud",
+                    description = "Medicina integrativa, bioelectricidad y salud holística",
+                    tags = "Dr. Duarte,Bioelectricidad,Biodescodificación,Nutrición,Medicina Integrativa"),
+                SkillEntity(name = "SKILL SUPERVIVENCIA",  category = "supervivencia",
+                    description = "Supervivencia urbana, en campo y situaciones críticas",
+                    tags = "Urbana,Bosque,Emergencias,Nuclear,Química,Logística"),
+                SkillEntity(name = "SKILL IA",             category = "ia",
+                    description = "Modelos de lenguaje, agentes y arquitecturas de inteligencia artificial",
+                    tags = "LLM,Claude,GPT,Gemini,DeepSeek,OpenRouter"),
+                SkillEntity(name = "SKILL CIBERSEGURIDAD", category = "ciberseguridad",
+                    description = "Seguridad de redes, infraestructura y auditoría técnica",
+                    tags = "Redes,Infraestructura,Auditoría,Automatización"),
+                SkillEntity(name = "SKILL MARKETING",      category = "marketing",
+                    description = "Marketing digital, contenido viral y automatización",
+                    tags = "Contenido,Reels,Meta Ads,Automatización,Bots,Ventas"),
+                SkillEntity(name = "SKILL SISTEMAS",       category = "sistemas",
+                    description = "Arquitecturas técnicas, automatización y documentación",
+                    tags = "Arquitecturas,Automatización,Documentación,APIs,Cloud"),
+                SkillEntity(name = "SKILL FINANZAS",       category = "finanzas",
+                    description = "Sistemas financieros, trading y gestión de capital",
+                    tags = "Trading,DeFi,Capital,Riesgo,Análisis,Inversión")
             ))
         }
     }
 
-    suspend fun toggleHabit(habit: HabitEntity) {
-        habitDao.update(habit.copy(completed = !habit.completed))
+    suspend fun saveLink(url: String, title: String, category: String) {
+        linkDao.insert(LinkEntity(url = url, title = title, category = category))
     }
 
-    suspend fun toggleMission(mission: MissionEntity) {
-        missionDao.update(mission.copy(completed = !mission.completed))
+    suspend fun deleteLink(link: LinkEntity) = linkDao.delete(link)
+
+    suspend fun addProject(name: String, type: String, description: String) {
+        projectDao.insert(ProjectEntity(name = name, type = type, description = description))
+    }
+
+    suspend fun addSystem(name: String, type: String, architecture: String) {
+        systemDao.insert(SystemEntity(name = name, type = type, architecture = architecture))
+    }
+
+    suspend fun addAgent(name: String, model: String, capability: String) {
+        agentDao.insert(AgentEntity(name = name, model = model, capability = capability))
     }
 }

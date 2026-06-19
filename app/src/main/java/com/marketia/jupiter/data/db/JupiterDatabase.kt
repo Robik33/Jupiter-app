@@ -6,13 +6,20 @@ import com.marketia.jupiter.data.db.dao.*
 import com.marketia.jupiter.data.entity.*
 
 @Database(
-    entities = [StatEntity::class, HabitEntity::class, MissionEntity::class, UserProgressEntity::class],
-    version = 1,
+    entities = [
+        SkillEntity::class,
+        LinkEntity::class,
+        ProjectEntity::class,
+        SystemEntity::class,
+        AgentEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class JupiterDatabase : RoomDatabase() {
-    abstract fun statDao(): StatDao
-    abstract fun habitDao(): HabitDao
-    abstract fun missionDao(): MissionDao
-    abstract fun progressDao(): ProgressDao
+    abstract fun skillDao(): SkillDao
+    abstract fun linkDao(): LinkDao
+    abstract fun projectDao(): ProjectDao
+    abstract fun systemDao(): SystemDao
+    abstract fun agentDao(): AgentDao
 }
