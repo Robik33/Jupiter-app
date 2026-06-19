@@ -4,8 +4,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.marketia.jupiter.ui.theme.JupiterTheme
-import com.marketia.jupiter.ui.screens.MainScreen
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.marketia.jupiter.ui.navigation.BottomNavItem
+import com.marketia.jupiter.ui.screens.dashboard.DashboardScreen
+import com.marketia.jupiter.ui.screens.habits.HabitsScreen
+import com.marketia.jupiter.ui.screens.profile.ProfileScreen
+import com.marketia.jupiter.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -15,8 +27,55 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             JupiterTheme {
-                MainScreen()
+                JupiterScaffold()
             }
+        }
+    }
+}
+
+@Composable
+private fun JupiterScaffold() {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val items = listOf(BottomNavItem.Dashboard, BottomNavItem.Habits, BottomNavItem.Profile)
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(containerColor = JupiterSurface) {
+                items.forEach { item ->
+                    NavigationBarItem(
+                        selected = currentRoute == item.route,
+                        onClick = {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = { Text(item.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = JupiterCyan,
+                            selectedTextColor = JupiterCyan,
+                            unselectedIconColor = JupiterGray,
+                            unselectedTextColor = JupiterGray,
+                            indicatorColor = JupiterDark
+                        )
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = BottomNavItem.Dashboard.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(BottomNavItem.Dashboard.route) { DashboardScreen() }
+            composable(BottomNavItem.Habits.route)    { HabitsScreen() }
+            composable(BottomNavItem.Profile.route)   { ProfileScreen() }
         }
     }
 }

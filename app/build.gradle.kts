@@ -14,8 +14,8 @@ android {
         applicationId = "com.marketia.jupiter"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "0.2.0"
     }
 
     signingConfigs {
@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.material.icons.core)
     implementation(libs.androidx.navigation.compose)
 
     // Hilt
