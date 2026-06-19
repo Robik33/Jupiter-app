@@ -12,13 +12,18 @@ class JupiterRepository @Inject constructor(
     val linkDao: LinkDao,
     val projectDao: ProjectDao,
     val systemDao: SystemDao,
-    val agentDao: AgentDao
+    val agentDao: AgentDao,
+    val taskDao: TaskDao
 ) {
-    val skills: Flow<List<SkillEntity>> = skillDao.getAll()
-    val links: Flow<List<LinkEntity>> = linkDao.getAll()
+    val skills: Flow<List<SkillEntity>>     = skillDao.getAll()
+    val links: Flow<List<LinkEntity>>       = linkDao.getAll()
     val projects: Flow<List<ProjectEntity>> = projectDao.getAll()
-    val systems: Flow<List<SystemEntity>> = systemDao.getAll()
-    val agents: Flow<List<AgentEntity>> = agentDao.getAll()
+    val systems: Flow<List<SystemEntity>>   = systemDao.getAll()
+    val agents: Flow<List<AgentEntity>>     = agentDao.getAll()
+
+    fun searchSkills(q: String): Flow<List<SkillEntity>>     = skillDao.search(q)
+    fun searchLinks(q: String): Flow<List<LinkEntity>>       = linkDao.search(q)
+    fun searchProjects(q: String): Flow<List<ProjectEntity>> = projectDao.search(q)
 
     suspend fun seedIfEmpty() {
         if (skillDao.count() == 0) {
@@ -52,7 +57,15 @@ class JupiterRepository @Inject constructor(
         linkDao.insert(LinkEntity(url = url, title = title, category = category))
     }
 
+    suspend fun saveLinkEntity(link: LinkEntity) = linkDao.insert(link)
+
+    suspend fun updateLink(link: LinkEntity) = linkDao.update(link)
+
     suspend fun deleteLink(link: LinkEntity) = linkDao.delete(link)
+
+    suspend fun saveSkill(skill: SkillEntity) = skillDao.insert(skill)
+
+    suspend fun deleteSkill(skill: SkillEntity) = skillDao.delete(skill)
 
     suspend fun addProject(name: String, type: String, description: String) {
         projectDao.insert(ProjectEntity(name = name, type = type, description = description))
@@ -65,4 +78,17 @@ class JupiterRepository @Inject constructor(
     suspend fun addAgent(name: String, model: String, capability: String) {
         agentDao.insert(AgentEntity(name = name, model = model, capability = capability))
     }
+
+    // Task queue
+    val tasks: Flow<List<TaskEntity>> = taskDao.getAll()
+
+    suspend fun submitTask(title: String, description: String, priority: String = "MEDIUM"): Long =
+        taskDao.insert(TaskEntity(title = title, description = description, priority = priority))
+
+    suspend fun updateTask(task: TaskEntity) = taskDao.update(task)
+    suspend fun getNextPendingTask(): TaskEntity? = taskDao.getNextPending()
+    suspend fun countDoneTasks(): Int = taskDao.countDone()
+    suspend fun countPendingTasks(): Int = taskDao.countPending()
+    suspend fun clearDoneTasks() = taskDao.clearDone()
+    suspend fun deleteTask(task: TaskEntity) = taskDao.delete(task)
 }

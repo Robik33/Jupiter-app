@@ -10,5 +10,8 @@ data class LinkEntity(
     val title: String,
     val category: String,
     val summary: String = "",
+    val skills: String = "",
+    val concepts: String = "",
+    val processed: Boolean = false,
     val savedAt: Long = System.currentTimeMillis()
 )

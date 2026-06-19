@@ -11,5 +11,8 @@ data class SkillEntity(
     val description: String,
     val tags: String,
     val isBuiltIn: Boolean = true,
+    val resumen: String = "",
+    val conocimientos: String = "",
+    val fuente: String = "",
     val createdAt: Long = System.currentTimeMillis()
 )

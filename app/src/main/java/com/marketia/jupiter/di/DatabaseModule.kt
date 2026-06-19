@@ -26,4 +26,5 @@ object DatabaseModule {
     @Provides fun provideProjectDao(db: JupiterDatabase) = db.projectDao()
     @Provides fun provideSystemDao(db: JupiterDatabase)  = db.systemDao()
     @Provides fun provideAgentDao(db: JupiterDatabase)   = db.agentDao()
+    @Provides fun provideTaskDao(db: JupiterDatabase)    = db.taskDao()
 }
