@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.marketia.jupiter.ui.navigation.BottomNavItem
+import com.marketia.jupiter.ui.screens.evaluation.SelfEvaluationScreen
 import com.marketia.jupiter.ui.screens.memory.MemoryScreen
 import com.marketia.jupiter.ui.screens.nucleus.NucleusScreen
 import com.marketia.jupiter.ui.screens.settings.SettingsScreen
@@ -40,7 +41,8 @@ private fun JupiterScaffold() {
         BottomNavItem.Nucleus,
         BottomNavItem.Skills,
         BottomNavItem.Memory,
-        BottomNavItem.Config
+        BottomNavItem.Config,
+        BottomNavItem.Eval
     )
 
     Scaffold(
@@ -79,6 +81,7 @@ private fun JupiterScaffold() {
             composable(BottomNavItem.Skills.route)  { SkillsScreen() }
             composable(BottomNavItem.Memory.route)  { MemoryScreen() }
             composable(BottomNavItem.Config.route)  { SettingsScreen() }
+            composable(BottomNavItem.Eval.route)    { SelfEvaluationScreen() }
         }
     }
 }
