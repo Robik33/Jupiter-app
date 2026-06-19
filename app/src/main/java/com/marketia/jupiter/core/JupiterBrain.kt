@@ -4,119 +4,153 @@ data class JupiterResponse(
     val orderReceived: String,
     val typeDetected: String,
     val nextAction: String,
-    val status: String
+    val status: String,
+    val action: String? = null,
+    val params: Map<String, String> = emptyMap()
 ) {
-    fun toSpokenText(): String =
-        "Orden recibida. Tipo: $typeDetected. $nextAction Estado: $status."
+    fun toSpokenText(): String = nextAction
 }
 
 object JupiterBrain {
 
     fun process(input: String): JupiterResponse {
-        val t = input.lowercase().trim()
-
+        val text = input.lowercase().trim()
         return when {
-            creates(t, "app", "aplicación", "aplicacion", "aplicativo", "mobile", "android") ->
-                respond(input, "APLICACIÓN",
-                    "Definir plataforma (Android/iOS/Web), funcionalidades core, stack tecnológico y arquitectura inicial.",
-                    "INICIANDO ARQUITECTURA")
+            isVoice(text) -> resp(input, "VOICE_CUSTOMIZATION",
+                "Ajustando mi voz para sonar más natural. Velocidad y tono optimizados.",
+                "APPLY_VOICE", mapOf("speed" to "0.82", "pitch" to "0.90"))
 
-            creates(t, "skill", "conocimiento", "especialidad", "dominio") ->
-                respond(input, "SKILL",
-                    "Definir dominio de conocimiento, subtemas, fuentes y estructura de aprendizaje.",
-                    "ESTRUCTURANDO CONOCIMIENTO")
+            creates(text, "app", "aplicación", "aplicacion") -> resp(input, "CREATE_APP",
+                "Iniciando proyecto de app. Registrando arquitectura en memoria.",
+                "SAVE_PROJECT", mapOf("type" to "app", "name" to extractName(input)))
 
-            creates(t, "sistema financiero", "trading system") ||
-            (creates(t, "sistema") && contains(t, "financiero", "trading", "capital", "inversión")) ->
-                respond(input, "SISTEMA FINANCIERO",
-                    "Definir estrategia, activos objetivo, gestión de riesgo y métricas de rendimiento.",
-                    "ANALIZANDO MERCADO")
+            creates(text, "skill") -> resp(input, "CREATE_SKILL",
+                "Creando nuevo skill. Define las capacidades que necesitas.",
+                "SAVE_PROJECT", mapOf("type" to "skill", "name" to extractName(input)))
 
-            creates(t, "sistema", "system", "arquitectura", "infraestructura") ->
-                respond(input, "SISTEMA",
-                    "Definir componentes, flujo de datos, integraciones necesarias y métricas de éxito.",
-                    "DISEÑANDO ARQUITECTURA")
+            creates(text, "sistema") -> resp(input, "CREATE_SYSTEM",
+                "Diseñando arquitectura del sistema. Documentando en memoria.",
+                "SAVE_PROJECT", mapOf("type" to "sistema", "name" to extractName(input)))
 
-            creates(t, "bot", "chatbot") ->
-                respond(input, "BOT / AGENTE",
-                    "Definir personalidad, capacidades, canal de despliegue y modelo de lenguaje base.",
-                    "CONFIGURANDO AGENTE")
+            creates(text, "bot") -> resp(input, "CREATE_BOT",
+                "Iniciando arquitectura del bot. Registrando en agentes.",
+                "SAVE_PROJECT", mapOf("type" to "bot", "name" to extractName(input)))
 
-            creates(t, "agente", "agent") ->
-                respond(input, "AGENTE IA",
-                    "Definir modelo base (Claude/GPT/Gemini), herramientas disponibles, contexto y límites de acción. Disponible en V0.4.",
-                    "PREPARANDO [V0.4]")
+            creates(text, "agente", "agent") -> resp(input, "CREATE_AGENT",
+                "Definiendo capacidades del agente IA. Registrando en sistema.",
+                "SAVE_PROJECT", mapOf("type" to "agente", "name" to extractName(input)))
 
-            t.contains("automatizar") || creates(t, "automatización", "automatizacion", "automation") ->
-                respond(input, "AUTOMATIZACIÓN",
-                    "Mapear proceso manual, identificar triggers y acciones, seleccionar herramientas (Zapier/n8n/Make).",
-                    "ANALIZANDO FLUJO")
+            creates(text, "automatizacion", "automatización", "flujo") -> resp(input, "CREATE_SYSTEM",
+                "Diseñando flujo de automatización. Documentando componentes.",
+                "SAVE_PROJECT", mapOf("type" to "automatizacion", "name" to extractName(input)))
 
-            t.contains("analizar") && contains(t, "link", "url", "enlace", "podcast", "video", "artículo", "articulo", "canal") ->
-                respond(input, "ANÁLISIS DE CONTENIDO",
-                    "Ve a MEMORIA → Gestor de Links → pega el enlace con categoría. JÚPITER lo indexará para extracción de conocimiento en V0.4.",
-                    "REDIRIGIENDO A MEMORIA")
+            creates(text, "empresa", "negocio", "startup") -> resp(input, "CREATE_SYSTEM",
+                "Estructurando modelo de negocio. Documentando en sistema.",
+                "SAVE_PROJECT", mapOf("type" to "empresa", "name" to extractName(input)))
 
-            t.contains("conectar") && contains(t, "api", "servicio", "webhook") ||
-            creates(t, "conector", "integración", "integracion") ->
-                respond(input, "INTEGRACIÓN API",
-                    "Identificar endpoint, método de autenticación, estructura del payload y casos de uso de la integración.",
-                    "PREPARANDO CONECTOR")
+            creates(text, "curso", "contenido", "módulo", "modulo") -> resp(input, "CREATE_SKILL",
+                "Estructurando contenido del curso. Registrando módulos.",
+                "SAVE_PROJECT", mapOf("type" to "curso", "name" to extractName(input)))
 
-            creates(t, "empresa", "negocio", "startup", "compañía", "compania") ->
-                respond(input, "EMPRESA / STARTUP",
-                    "Definir modelo de negocio, propuesta de valor, mercado objetivo, estructura legal y plan de tracción inicial.",
-                    "CONSTRUYENDO ESTRUCTURA")
+            creates(text, "sitio", "landing", "página", "pagina") -> resp(input, "CREATE_APP",
+                "Iniciando diseño del sitio web. Definiendo arquitectura frontend.",
+                "SAVE_PROJECT", mapOf("type" to "web", "name" to extractName(input)))
 
-            creates(t, "curso", "contenido educativo", "training", "programa") ->
-                respond(input, "CURSO / CONTENIDO",
-                    "Definir audiencia objetivo, módulos temáticos, formato de entrega y metodología de evaluación.",
-                    "DISEÑANDO CURRICULUM")
+            creates(text, "marketing", "campaña", "campana", "anuncio", "ads") -> resp(input, "CREATE_SYSTEM",
+                "Diseñando estrategia de marketing. Documentando en sistema.",
+                "SAVE_PROJECT", mapOf("type" to "marketing", "name" to extractName(input)))
 
-            creates(t, "sitio web", "sitio", "web", "landing", "página", "pagina", "website") ->
-                respond(input, "SITIO WEB",
-                    "Definir propósito, tecnología base (Next.js/Astro/React), diseño, hosting y dominio.",
-                    "ARQUITECTURANDO SITIO")
+            creates(text, "trading", "inversión", "inversion") -> resp(input, "CREATE_SYSTEM",
+                "Estructurando sistema de trading. Registrando en finanzas.",
+                "SAVE_PROJECT", mapOf("type" to "trading", "name" to extractName(input)))
 
-            creates(t, "marketing", "campaña", "campana", "contenido", "estrategia") ->
-                respond(input, "SISTEMA DE MARKETING",
-                    "Definir audiencia, canales (Meta/TikTok/LinkedIn), embudo de conversión y métricas de seguimiento.",
-                    "DISEÑANDO ESTRATEGIA")
+            isSearch(text) -> resp(input, "WEB_SEARCH",
+                "Buscando información...",
+                "SEARCH", mapOf("query" to extractSearchQuery(text)))
 
-            creates(t, "trading", "estrategia de trading", "señal", "senal") ->
-                respond(input, "SISTEMA DE TRADING",
-                    "Definir activos, timeframe, lógica de entrada/salida, gestión de riesgo y backtesting.",
-                    "CONFIGURANDO ESTRATEGIA")
+            isGitHub(text) -> resp(input, "GITHUB_ACTION",
+                "Acción GitHub registrada. Conecta ClaudeCodeBridge para ejecución real.",
+                "GITHUB", mapOf("action" to "inspect"))
 
-            t.contains("hola") || t.contains("jupiter") || t.contains("júpiter") || t.contains("inicio") ->
-                respond(input, "INICIALIZACIÓN",
-                    "JÚPITER activo. Di 'crear app', 'crear sistema', 'crear skill', 'analizar link' o cualquier creación que necesites.",
-                    "EN ESPERA")
+            isBuild(text) -> resp(input, "BUILD_APK",
+                "Build encolado. Requiere ClaudeCodeBridge activo en PC.",
+                "BUILD_APK", mapOf("target" to "release"))
 
-            t.contains("memoria") || t.contains("skills") || t.contains("links") ->
-                respond(input, "CONSULTA DE MEMORIA",
-                    "Ve a la pestaña SKILLS para ver conocimientos o MEMORIA para links, proyectos y sistemas.",
-                    "REDIRIGIENDO")
+            text.contains("guardar") || text.contains("recordar") -> resp(input, "MEMORY_SAVE",
+                "Guardando en memoria...",
+                "MEMORY_SAVE", mapOf("content" to input))
 
-            else ->
-                respond(input, "ORDEN NO RECONOCIDA",
-                    "Especifica qué deseas crear. Ejemplos: 'Crear una app de finanzas', 'Crear un sistema de marketing', 'Crear un skill de IA', 'Analizar este link'.",
-                    "REFORMULANDO")
+            text.contains("http") || text.contains("link") || text.contains("url") -> resp(input, "MEMORY_SAVE",
+                "Guardando enlace en memoria.",
+                "MEMORY_SAVE", mapOf("content" to input, "type" to "link"))
+
+            isGreeting(text) -> resp(input, "GREETING",
+                "Listo para crear. ¿Qué necesitas construir hoy?")
+
+            else -> resp(input, "UNKNOWN",
+                "¿Quieres que lo convierta en un skill, ajuste de voz, proyecto o búsqueda web?",
+                "CLARIFY")
         }
     }
 
-    private fun respond(order: String, type: String, action: String, status: String) =
-        JupiterResponse(orderReceived = order, typeDetected = type, nextAction = action, status = status)
+    private fun resp(
+        input: String, intent: String, response: String,
+        action: String? = null, params: Map<String, String> = emptyMap()
+    ) = JupiterResponse(
+        orderReceived = input,
+        typeDetected  = intent,
+        nextAction    = response,
+        status        = when { intent == "UNKNOWN" -> "ESPERANDO"; action != null -> "EJECUTANDO"; else -> "COMPLETADO" },
+        action        = action,
+        params        = params
+    )
 
-    private fun creates(text: String, vararg keywords: String): Boolean {
-        val createVerbs = listOf("crear", "create", "construir", "build", "necesito", "quiero",
-            "hacer", "desarrollar", "generar", "diseñar", "armar", "implementar")
-        val hasVerb = createVerbs.any { text.contains(it) }
-        val hasKeyword = keywords.any { text.contains(it) }
-        val isDirectCommand = keywords.any { text == it || text.startsWith(it) || text.endsWith(it) }
-        return (hasVerb && hasKeyword) || isDirectCommand
+    private fun isVoice(text: String): Boolean {
+        val voiceWords = listOf("voz","tts","hablas","suenas","sonar","speech")
+        val changeWords = listOf("humana","natural","ajust","cambi","crea","mejor","configur","otra","distinta")
+        return voiceWords.any { text.contains(it) } && changeWords.any { text.contains(it) }
     }
 
-    private fun contains(text: String, vararg keywords: String): Boolean =
-        keywords.any { text.contains(it) }
+    private fun isSearch(text: String) =
+        text.startsWith("busca") || text.startsWith("buscar") ||
+        text.contains("busca ") || text.contains("encuentra ")
+
+    private fun isGitHub(text: String) =
+        text.contains("github") || text.contains("repositorio") ||
+        text.contains("commit") || text.contains("push repo")
+
+    private fun isBuild(text: String) =
+        (text.contains("build") || text.contains("compilar")) && text.contains("apk")
+
+    private fun isGreeting(text: String) =
+        text.startsWith("hola") || text.startsWith("hey") || text.startsWith("buenas") ||
+        text == "jupiter" || text == "júpiter"
+
+    private fun creates(text: String, vararg keywords: String): Boolean {
+        val verbs = listOf("crear","create","construir","build","necesito","quiero","hacer",
+            "desarrollar","generar","diseñar","armar","implementar","iniciar","lanzar","quiero un")
+        val hasVerb = verbs.any { text.contains(it) }
+        val hasKw   = keywords.any { text.contains(it) }
+        val direct  = keywords.any { text == it || text.startsWith("$it ") }
+        return (hasVerb && hasKw) || direct
+    }
+
+    private fun extractName(input: String): String {
+        val lower = input.lowercase()
+        val verbs = listOf("crear","create","construir","necesito","quiero","hacer","desarrollar","generar")
+        var result = input
+        for (v in verbs) {
+            if (lower.contains(v)) {
+                result = input.substringAfter(v, input).trim().replaceFirstChar { it.uppercase() }
+                break
+            }
+        }
+        return result.take(60)
+    }
+
+    private fun extractSearchQuery(text: String): String {
+        val prefixes = listOf("busca sobre ","buscar sobre ","busca ","buscar ","encuentra ")
+        for (p in prefixes) { if (text.contains(p)) return text.substringAfter(p).trim() }
+        return text
+    }
 }

@@ -14,8 +14,8 @@ android {
         applicationId = "com.marketia.jupiter"
         minSdk = 29
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.0"
+        versionCode = 5
+        versionName = "0.4.0"
     }
 
     signingConfigs {
@@ -74,6 +74,10 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // DataStore + OkHttp
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.okhttp)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

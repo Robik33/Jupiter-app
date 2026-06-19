@@ -7,13 +7,23 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class VoiceEngine(private val context: Context) {
-
+@Singleton
+class VoiceEngine @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
     private var recognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+
+    var speed: Float = 1.0f
+        private set
+    var pitch: Float = 1.0f
+        private set
 
     init {
         tts = TextToSpeech(context) { status ->
@@ -21,15 +31,24 @@ class VoiceEngine(private val context: Context) {
                 val result = tts?.setLanguage(Locale("es", "ES"))
                 ttsReady = result != TextToSpeech.LANG_MISSING_DATA &&
                            result != TextToSpeech.LANG_NOT_SUPPORTED
-                if (!ttsReady) {
-                    tts?.setLanguage(Locale.getDefault())
-                    ttsReady = true
-                }
+                if (!ttsReady) { tts?.setLanguage(Locale.getDefault()); ttsReady = true }
+                tts?.setSpeechRate(speed)
+                tts?.setPitch(pitch)
             }
         }
     }
 
     fun isAvailable(): Boolean = SpeechRecognizer.isRecognitionAvailable(context)
+
+    fun setSpeed(newSpeed: Float) {
+        speed = newSpeed.coerceIn(0.5f, 2.0f)
+        tts?.setSpeechRate(speed)
+    }
+
+    fun setPitch(newPitch: Float) {
+        pitch = newPitch.coerceIn(0.5f, 2.0f)
+        tts?.setPitch(pitch)
+    }
 
     fun startListening(
         onPartialResult: (String) -> Unit,
@@ -47,18 +66,16 @@ class VoiceEngine(private val context: Context) {
             override fun onEvent(eventType: Int, params: Bundle) {}
 
             override fun onResults(results: Bundle) {
-                val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                matches?.firstOrNull()?.let { onFinalResult(it) }
+                results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()?.let { onFinalResult(it) }
             }
 
             override fun onPartialResults(results: Bundle) {
-                val partial = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                partial?.firstOrNull()?.let { onPartialResult(it) }
+                results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull()?.let { onPartialResult(it) }
             }
 
-            override fun onError(error: Int) {
-                onError(error)
-            }
+            override fun onError(error: Int) { onError(error) }
         })
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -70,9 +87,7 @@ class VoiceEngine(private val context: Context) {
         recognizer?.startListening(intent)
     }
 
-    fun stopListening() {
-        recognizer?.stopListening()
-    }
+    fun stopListening() { recognizer?.stopListening() }
 
     fun speak(text: String) {
         if (ttsReady) {
@@ -80,15 +95,10 @@ class VoiceEngine(private val context: Context) {
         }
     }
 
-    fun stopSpeaking() {
-        tts?.stop()
-    }
+    fun stopSpeaking() { tts?.stop() }
 
     fun destroy() {
-        recognizer?.destroy()
-        recognizer = null
-        tts?.stop()
-        tts?.shutdown()
-        tts = null
+        recognizer?.destroy(); recognizer = null
+        tts?.stop(); tts?.shutdown(); tts = null
     }
 }

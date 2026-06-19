@@ -16,6 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import com.marketia.jupiter.ui.navigation.BottomNavItem
 import com.marketia.jupiter.ui.screens.memory.MemoryScreen
 import com.marketia.jupiter.ui.screens.nucleus.NucleusScreen
+import com.marketia.jupiter.ui.screens.settings.SettingsScreen
 import com.marketia.jupiter.ui.screens.skills.SkillsScreen
 import com.marketia.jupiter.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,11 +26,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            JupiterTheme {
-                JupiterScaffold()
-            }
-        }
+        setContent { JupiterTheme { JupiterScaffold() } }
     }
 }
 
@@ -39,7 +36,12 @@ private fun JupiterScaffold() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    val items = listOf(BottomNavItem.Nucleus, BottomNavItem.Skills, BottomNavItem.Memory)
+    val items = listOf(
+        BottomNavItem.Nucleus,
+        BottomNavItem.Skills,
+        BottomNavItem.Memory,
+        BottomNavItem.Config
+    )
 
     Scaffold(
         bottomBar = {
@@ -47,21 +49,21 @@ private fun JupiterScaffold() {
                 items.forEach { item ->
                     NavigationBarItem(
                         selected = currentRoute == item.route,
-                        onClick = {
+                        onClick  = {
                             navController.navigate(item.route) {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                                 launchSingleTop = true
-                                restoreState = true
+                                restoreState    = true
                             }
                         },
-                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        icon  = { Icon(item.icon, contentDescription = item.label) },
                         label = { Text(item.label) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = JupiterCyan,
-                            selectedTextColor = JupiterCyan,
+                            selectedIconColor   = JupiterCyan,
+                            selectedTextColor   = JupiterCyan,
                             unselectedIconColor = JupiterGray,
                             unselectedTextColor = JupiterGray,
-                            indicatorColor = JupiterDark
+                            indicatorColor      = JupiterDark
                         )
                     )
                 }
@@ -69,13 +71,14 @@ private fun JupiterScaffold() {
         }
     ) { innerPadding ->
         NavHost(
-            navController = navController,
+            navController    = navController,
             startDestination = BottomNavItem.Nucleus.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier         = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Nucleus.route) { NucleusScreen() }
             composable(BottomNavItem.Skills.route)  { SkillsScreen() }
             composable(BottomNavItem.Memory.route)  { MemoryScreen() }
+            composable(BottomNavItem.Config.route)  { SettingsScreen() }
         }
     }
 }
