@@ -28,9 +28,9 @@ class UpdateManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        // Raw GitHub URL — works on public repos without auth
+        // Public GitHub Gist — always accessible without auth regardless of repo visibility
         const val MANIFEST_URL =
-            "https://raw.githubusercontent.com/Robik33/Jupiter-app/main/releases/latest.json"
+            "https://gist.githubusercontent.com/Robik33/8fdde845e278f54bf639adfccb3be295/raw/latest.json"
         private const val DOWNLOAD_FILENAME = "jupiter-update.apk"
         private const val TIMEOUT_MS = 10 * 60 * 1000L // 10 min
     }

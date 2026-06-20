@@ -1,9 +1,9 @@
 {
   "versionCode": 9,
   "versionName": "0.9.0",
-  "apkUrl": "https://github.com/Robik33/Jupiter-app/releases/download/v0.9.0/jupiter-v0.9.0-release.apk",
+  "apkUrl": "https://files.catbox.moe/p9g9lt.apk",
   "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v0.9.0",
-  "sha256": "3ccd9e87deada8956daa71711206478ebcbf1a0dc84b8a3d0538133a099180eb",
+  "sha256": "0e0fe94a1b06aa5c60d2bad3e32c5f5354fa803dc31c16c1aa52ab63d89f16a1",
   "sizeBytes": 45159468,
   "mandatory": false,
   "changelog": [
