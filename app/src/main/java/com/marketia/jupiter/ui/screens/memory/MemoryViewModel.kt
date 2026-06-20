@@ -19,6 +19,7 @@ class MemoryViewModel @Inject constructor(
     val projects = repository.projects.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val systems  = repository.systems.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val agents   = repository.agents.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val nodes    = repository.nodes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun addLink(url: String, title: String, category: String) {
         viewModelScope.launch { repository.saveLink(url, title, category) }
@@ -34,5 +35,9 @@ class MemoryViewModel @Inject constructor(
 
     fun addAgent(name: String, model: String, capability: String) {
         viewModelScope.launch { repository.addAgent(name, model, capability) }
+    }
+
+    fun deleteNode(node: MemoryNodeEntity) {
+        viewModelScope.launch { repository.deleteMemoryNode(node) }
     }
 }

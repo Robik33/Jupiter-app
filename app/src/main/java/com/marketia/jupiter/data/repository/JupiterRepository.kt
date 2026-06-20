@@ -13,16 +13,20 @@ class JupiterRepository @Inject constructor(
     val projectDao: ProjectDao,
     val systemDao: SystemDao,
     val agentDao: AgentDao,
-    val taskDao: TaskDao
+    val taskDao: TaskDao,
+    val nodeDao: MemoryNodeDao,
+    val edgeDao: MemoryEdgeDao
 ) {
-    val skills: Flow<List<SkillEntity>>     = skillDao.getAll()
-    val links: Flow<List<LinkEntity>>       = linkDao.getAll()
-    val projects: Flow<List<ProjectEntity>> = projectDao.getAll()
-    val systems: Flow<List<SystemEntity>>   = systemDao.getAll()
-    val agents: Flow<List<AgentEntity>>     = agentDao.getAll()
+    val skills:   Flow<List<SkillEntity>>      = skillDao.getAll()
+    val links:    Flow<List<LinkEntity>>       = linkDao.getAll()
+    val projects: Flow<List<ProjectEntity>>    = projectDao.getAll()
+    val systems:  Flow<List<SystemEntity>>     = systemDao.getAll()
+    val agents:   Flow<List<AgentEntity>>      = agentDao.getAll()
+    val nodes:    Flow<List<MemoryNodeEntity>> = nodeDao.getAll()
+    val edges:    Flow<List<MemoryEdgeEntity>> = edgeDao.getAll()
 
-    fun searchSkills(q: String): Flow<List<SkillEntity>>     = skillDao.search(q)
-    fun searchLinks(q: String): Flow<List<LinkEntity>>       = linkDao.search(q)
+    fun searchSkills(q: String):   Flow<List<SkillEntity>>   = skillDao.search(q)
+    fun searchLinks(q: String):    Flow<List<LinkEntity>>    = linkDao.search(q)
     fun searchProjects(q: String): Flow<List<ProjectEntity>> = projectDao.search(q)
 
     suspend fun seedIfEmpty() {
@@ -57,15 +61,11 @@ class JupiterRepository @Inject constructor(
         linkDao.insert(LinkEntity(url = url, title = title, category = category))
     }
 
-    suspend fun saveLinkEntity(link: LinkEntity) = linkDao.insert(link)
-
-    suspend fun updateLink(link: LinkEntity) = linkDao.update(link)
-
-    suspend fun deleteLink(link: LinkEntity) = linkDao.delete(link)
-
-    suspend fun saveSkill(skill: SkillEntity) = skillDao.insert(skill)
-
-    suspend fun deleteSkill(skill: SkillEntity) = skillDao.delete(skill)
+    suspend fun saveLinkEntity(link: LinkEntity): Long = linkDao.insert(link)
+    suspend fun updateLink(link: LinkEntity)          = linkDao.update(link)
+    suspend fun deleteLink(link: LinkEntity)          = linkDao.delete(link)
+    suspend fun saveSkill(skill: SkillEntity): Long   = skillDao.insert(skill)
+    suspend fun deleteSkill(skill: SkillEntity)       = skillDao.delete(skill)
 
     suspend fun addProject(name: String, type: String, description: String) {
         projectDao.insert(ProjectEntity(name = name, type = type, description = description))
@@ -79,16 +79,21 @@ class JupiterRepository @Inject constructor(
         agentDao.insert(AgentEntity(name = name, model = model, capability = capability))
     }
 
+    // Semantic memory
+    suspend fun saveMemoryNode(node: MemoryNodeEntity): Long = nodeDao.insert(node)
+    suspend fun saveMemoryEdge(edge: MemoryEdgeEntity): Long = edgeDao.insert(edge)
+    suspend fun deleteMemoryNode(node: MemoryNodeEntity)     = nodeDao.delete(node)
+
     // Task queue
     val tasks: Flow<List<TaskEntity>> = taskDao.getAll()
 
     suspend fun submitTask(title: String, description: String, priority: String = "MEDIUM"): Long =
         taskDao.insert(TaskEntity(title = title, description = description, priority = priority))
 
-    suspend fun updateTask(task: TaskEntity) = taskDao.update(task)
+    suspend fun updateTask(task: TaskEntity)      = taskDao.update(task)
     suspend fun getNextPendingTask(): TaskEntity? = taskDao.getNextPending()
-    suspend fun countDoneTasks(): Int = taskDao.countDone()
-    suspend fun countPendingTasks(): Int = taskDao.countPending()
-    suspend fun clearDoneTasks() = taskDao.clearDone()
-    suspend fun deleteTask(task: TaskEntity) = taskDao.delete(task)
+    suspend fun countDoneTasks(): Int             = taskDao.countDone()
+    suspend fun countPendingTasks(): Int          = taskDao.countPending()
+    suspend fun clearDoneTasks()                  = taskDao.clearDone()
+    suspend fun deleteTask(task: TaskEntity)      = taskDao.delete(task)
 }

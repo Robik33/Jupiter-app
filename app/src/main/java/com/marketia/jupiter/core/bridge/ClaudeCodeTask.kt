@@ -1,16 +1,22 @@
 package com.marketia.jupiter.core.bridge
 
 data class ClaudeCodeTask(
-    val source: String              = "JUPITER_ANDROID",
+    val source: String                = "JUPITER_ANDROID",
     val version: String,
     val goal: String,
     val problem: String,
     val evidence: String,
     val requestedChange: String,
-    val priority: TaskPriority     = TaskPriority.MEDIUM,
+    val priority: TaskPriority        = TaskPriority.MEDIUM,
     val requiresUserApproval: Boolean = true,
-    val channel: BridgeChannel     = BridgeChannel.GITHUB_ISSUE,
-    val status: TaskStatus         = TaskStatus.PENDING_USER_APPROVAL
+    val channel: BridgeChannel        = BridgeChannel.GITHUB_ISSUE,
+    val status: TaskStatus            = TaskStatus.PENDING_USER_APPROVAL,
+    // V0.8: executable task format for Claude Code PC
+    val objective: String             = "",
+    val filesToChange: List<String>   = emptyList(),
+    val steps: List<String>           = emptyList(),
+    val validation: String            = "",
+    val expectedResult: String        = ""
 )
 
 enum class TaskPriority { LOW, MEDIUM, HIGH, CRITICAL }
@@ -30,20 +36,30 @@ enum class BridgeChannel {
     TELEGRAM
 }
 
-fun ClaudeCodeTask.toJson(): String = """
+fun ClaudeCodeTask.toJson(): String {
+    val filesJson = filesToChange.joinToString(",") { "\"${it.jsonEscape()}\"" }
+    val stepsJson = steps.joinToString(",") { "\"${it.jsonEscape()}\"" }
+    return """
 {
   "source": "$source",
   "version": "$version",
-  "goal": ${goal.jsonEscape()},
-  "problem": ${problem.jsonEscape()},
-  "evidence": ${evidence.jsonEscape()},
-  "requested_change": ${requestedChange.jsonEscape()},
+  "goal": ${goal.jsonQuote()},
+  "problem": ${problem.jsonQuote()},
+  "evidence": ${evidence.jsonQuote()},
+  "requested_change": ${requestedChange.jsonQuote()},
   "priority": "${priority.name}",
   "requires_user_approval": $requiresUserApproval,
   "channel": "${channel.name}",
-  "status": "${status.name}"
+  "status": "${status.name}",
+  "objective": ${objective.jsonQuote()},
+  "files_to_change": [$filesJson],
+  "steps": [$stepsJson],
+  "validation": ${validation.jsonQuote()},
+  "expected_result": ${expectedResult.jsonQuote()}
+}""".trimIndent()
 }
-""".trimIndent()
 
 private fun String.jsonEscape(): String =
-    "\"${replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\""
+    replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+
+private fun String.jsonQuote(): String = "\"${jsonEscape()}\""

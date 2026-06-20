@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -19,26 +21,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.marketia.jupiter.core.autonomy.EngineState
 import com.marketia.jupiter.core.autonomy.OllamaStatus
+import com.marketia.jupiter.core.ingestion.IngestionStatus
+import com.marketia.jupiter.core.orchestrator.UserIntent
 import com.marketia.jupiter.data.entity.TaskEntity
 import com.marketia.jupiter.ui.theme.*
 
 @Composable
 fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
-    val engineState  by viewModel.engineState.collectAsState()
-    val tasks        by viewModel.tasks.collectAsState()
-    val ollamaStatus by viewModel.ollamaStatus.collectAsState()
-    val tokensSaved  by viewModel.tokensSaved.collectAsState()
-    val settings     by viewModel.settings.collectAsState()
-    val currentStep  by viewModel.currentStep.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
+    val engineState    by viewModel.engineState.collectAsState()
+    val tasks          by viewModel.tasks.collectAsState()
+    val ollamaStatus   by viewModel.ollamaStatus.collectAsState()
+    val tokensSaved    by viewModel.tokensSaved.collectAsState()
+    val settings       by viewModel.settings.collectAsState()
+    val commandState   by viewModel.commandState.collectAsState()
+    val ingestionState by viewModel.ingestionState.collectAsState()
+    var showAddDialog  by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().background(JupiterBlack)) {
-        // ── Header ──────────────────────────────────────────────────────────
+        // ── Header ────────────────────────────────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -54,7 +60,8 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
                 }
                 val stepText = (engineState as? EngineState.Processing)?.step ?: ""
                 Text(
-                    if (stepText.isNotBlank()) "Ciclo: $stepText" else "Loop: PLAN → EXECUTE → VERIFY → FIX → REPORT",
+                    if (stepText.isNotBlank()) "Ciclo: $stepText"
+                    else "Loop: PLAN → EXECUTE → VERIFY → FIX → REPORT",
                     color = JupiterGray, fontSize = 11.sp
                 )
             }
@@ -65,6 +72,9 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // ── Command panel ────────────────────────────────────────────────
+            item { CommandPanel(commandState, ingestionState, viewModel) }
+
             // ── Engine controls ──────────────────────────────────────────────
             item {
                 EngineControlRow(
@@ -79,7 +89,14 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
             item { StatsRow(viewModel, tokensSaved) }
 
             // ── Provider status ──────────────────────────────────────────────
-            item { ProviderStatusSection(ollamaStatus, settings.claudeKey, settings.openrouterKey, onRefresh = { viewModel.refreshOllama() }) }
+            item {
+                ProviderStatusSection(
+                    ollama         = ollamaStatus,
+                    claudeKey      = settings.claudeKey,
+                    openrouterKey  = settings.openrouterKey,
+                    onRefresh      = { viewModel.refreshOllama() }
+                )
+            }
 
             // ── Task queue ───────────────────────────────────────────────────
             item {
@@ -101,14 +118,14 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
             if (tasks.isEmpty()) {
                 item {
                     Box(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("◈", fontSize = 32.sp, color = JupiterGray.copy(alpha = 0.4f))
-                            Spacer(Modifier.height(8.dp))
-                            Text("Sin tareas pendientes", color = JupiterGray, fontSize = 13.sp)
-                            Text("Toca + para agregar una tarea", color = JupiterGray.copy(alpha = 0.6f), fontSize = 11.sp)
+                            Text("◈", fontSize = 28.sp, color = JupiterGray.copy(alpha = 0.4f))
+                            Spacer(Modifier.height(6.dp))
+                            Text("Sin tareas en cola", color = JupiterGray, fontSize = 13.sp)
+                            Text("Escribe un comando arriba o toca +", color = JupiterGray.copy(alpha = 0.6f), fontSize = 11.sp)
                         }
                     }
                 }
@@ -144,6 +161,232 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
     }
 }
 
+// ── Command panel ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun CommandPanel(
+    commandState: CommandState,
+    ingestionState: IngestionState,
+    viewModel: AutonomyViewModel
+) {
+    var input by remember { mutableStateOf("") }
+    var showIngestDialog by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(JupiterSurface)
+            .border(1.dp, JupiterCyan.copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+            .padding(14.dp)
+    ) {
+        Text("COMANDO / INGESTIÓN", color = JupiterCyan, fontSize = 10.sp,
+            fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+        Spacer(Modifier.height(10.dp))
+
+        TextField(
+            value = input,
+            onValueChange = { input = it },
+            placeholder = { Text("Orden, URL o 'crear app de X'...", fontSize = 12.sp, color = JupiterGray) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = false,
+            maxLines = 3,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor    = JupiterBlack,
+                unfocusedContainerColor  = JupiterBlack,
+                focusedTextColor         = JupiterWhite,
+                unfocusedTextColor       = JupiterWhite,
+                focusedIndicatorColor    = JupiterCyan,
+                unfocusedIndicatorColor  = JupiterGray,
+                cursorColor              = JupiterCyan
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = {
+                if (input.isNotBlank()) {
+                    viewModel.processCommand(input)
+                    input = ""
+                }
+            })
+        )
+        Spacer(Modifier.height(10.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    if (input.isNotBlank()) {
+                        viewModel.processCommand(input)
+                        input = ""
+                    }
+                },
+                enabled  = input.isNotBlank() && commandState !is CommandState.Processing,
+                modifier = Modifier.weight(1f).height(40.dp),
+                shape    = RoundedCornerShape(10.dp),
+                colors   = ButtonDefaults.buttonColors(containerColor = JupiterCyan)
+            ) {
+                Text(
+                    if (commandState is CommandState.Processing) "PROCESANDO..." else "ENVIAR AL LOOP",
+                    color = JupiterBlack, fontSize = 11.sp, fontWeight = FontWeight.Black
+                )
+            }
+            OutlinedButton(
+                onClick  = { showIngestDialog = true },
+                enabled  = ingestionState !is IngestionState.Processing,
+                modifier = Modifier.height(40.dp),
+                shape    = RoundedCornerShape(10.dp),
+                border   = ButtonDefaults.outlinedButtonBorder.copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(Color(0xFF00FF88))
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00FF88))
+            ) {
+                Text(
+                    if (ingestionState is IngestionState.Processing) "..." else "INGESTAR LINK",
+                    fontSize = 11.sp, fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Command result feedback
+        when (val cs = commandState) {
+            is CommandState.Done -> {
+                Spacer(Modifier.height(8.dp))
+                CommandResultCard(cs.result, onDismiss = { viewModel.clearCommandState() })
+            }
+            is CommandState.Error -> {
+                Spacer(Modifier.height(6.dp))
+                Text("Error: ${cs.message}", color = Color(0xFFFF4444), fontSize = 11.sp)
+            }
+            else -> {}
+        }
+
+        // Ingestion result feedback
+        when (val is_ = ingestionState) {
+            is IngestionState.Done -> {
+                Spacer(Modifier.height(8.dp))
+                IngestionResultCard(is_.result, onDismiss = { viewModel.clearIngestionState() })
+            }
+            else -> {}
+        }
+    }
+
+    if (showIngestDialog) {
+        IngestLinkDialog(
+            onDismiss = { showIngestDialog = false },
+            onIngest  = { url ->
+                viewModel.ingestLink(url)
+                showIngestDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun CommandResultCard(result: com.marketia.jupiter.core.orchestrator.OrchestratorResult, onDismiss: () -> Unit) {
+    val intentLabel = when (result.intent) {
+        UserIntent.INGEST_LINK      -> "INGESTIÓN"
+        UserIntent.CREATE_APP       -> "CREAR APP"
+        UserIntent.CREATE_AGENT     -> "CREAR AGENTE"
+        UserIntent.CREATE_SKILL     -> "CREAR SKILL"
+        UserIntent.CREATE_SYSTEM    -> "CREAR SISTEMA"
+        UserIntent.CREATE_AUTOMATION -> "AUTOMATIZACIÓN"
+        UserIntent.CODE_TASK        -> "CÓDIGO"
+        UserIntent.UNKNOWN          -> "TAREA GENERAL"
+    }
+    val isQueued = result.status == "QUEUED"
+    val color    = if (isQueued) JupiterGreen else Color(0xFFFF4444)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.08f))
+            .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+            .padding(10.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("$intentLabel → ${result.status}", color = color, fontSize = 10.sp,
+                fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            if (result.taskId > 0) {
+                Text("Tarea #${result.taskId} creada", color = JupiterWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(result.nextAction, color = JupiterGray, fontSize = 11.sp)
+        }
+        TextButton(onClick = onDismiss, contentPadding = PaddingValues(0.dp)) {
+            Text("✕", color = JupiterGray, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun IngestionResultCard(result: com.marketia.jupiter.core.ingestion.IngestionResult, onDismiss: () -> Unit) {
+    val (color, label) = when (result.status) {
+        IngestionStatus.SUCCESS           -> JupiterGreen to "INGESTADO"
+        IngestionStatus.PENDING_INGESTION -> Color(0xFFFFAA00) to "PENDIENTE"
+        IngestionStatus.PARTIAL           -> JupiterCyan to "PARCIAL"
+        IngestionStatus.FAILED            -> Color(0xFFFF4444) to "FALLIDO"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.08f))
+            .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+            .padding(10.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text(result.title, color = JupiterWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            if (result.skillName.isNotBlank()) {
+                Text("Skill: ${result.skillName} · ${result.category}", color = JupiterGray, fontSize = 11.sp)
+            }
+            if (result.error.isNotBlank()) {
+                Text(result.error, color = color.copy(alpha = 0.8f), fontSize = 10.sp)
+            }
+        }
+        TextButton(onClick = onDismiss, contentPadding = PaddingValues(0.dp)) {
+            Text("✕", color = JupiterGray, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun IngestLinkDialog(onDismiss: () -> Unit, onIngest: (String) -> Unit) {
+    var url by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = JupiterSurface,
+        title = { Text("Ingestar Link", color = JupiterCyan, fontSize = 16.sp, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text("Pega una URL para analizar y convertir en Skill.", color = JupiterGray, fontSize = 12.sp)
+                Spacer(Modifier.height(10.dp))
+                TextField(
+                    value = url, onValueChange = { url = it },
+                    label = { Text("https://...", fontSize = 11.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor   = JupiterBlack, unfocusedContainerColor = JupiterBlack,
+                        focusedTextColor        = JupiterWhite, unfocusedTextColor      = JupiterWhite,
+                        focusedLabelColor       = JupiterCyan,  unfocusedLabelColor     = JupiterGray,
+                        cursorColor             = JupiterCyan,
+                        focusedIndicatorColor   = JupiterCyan,  unfocusedIndicatorColor = JupiterGray
+                    ), singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (url.isNotBlank()) onIngest(url.trim()) }, enabled = url.isNotBlank()) {
+                Text("INGESTAR", color = if (url.isNotBlank()) JupiterGreen else JupiterGray)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = JupiterGray) }
+        }
+    )
+}
+
 // ── Engine badge ──────────────────────────────────────────────────────────────
 
 @Composable
@@ -151,8 +394,8 @@ private fun EngineStateBadge(state: EngineState) {
     val (label, color) = when (state) {
         is EngineState.Running    -> "EN EJECUCIÓN" to JupiterGreen
         is EngineState.Processing -> state.step.take(12) to JupiterCyan
-        is EngineState.Stopped   -> "DETENIDO" to JupiterGray
-        else                     -> "INACTIVO" to JupiterGray
+        is EngineState.Stopped    -> "DETENIDO" to JupiterGray
+        else                      -> "INACTIVO" to JupiterGray
     }
     Box(
         modifier = Modifier
@@ -209,10 +452,10 @@ private fun EngineControlRow(
 @Composable
 private fun StatsRow(viewModel: AutonomyViewModel, tokensSaved: Int) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        MiniStat("PENDIENTES", viewModel.pendingCount().toString(), JupiterCyan, Modifier.weight(1f))
-        MiniStat("EN CURSO", viewModel.runningCount().toString(), Color(0xFFFFAA00), Modifier.weight(1f))
-        MiniStat("LISTAS", viewModel.doneCount().toString(), JupiterGreen, Modifier.weight(1f))
-        MiniStat("TOKENS\nAHORRADOS", tokensSaved.toString(), JupiterPurple, Modifier.weight(1f))
+        MiniStat("PENDIENTES",        viewModel.pendingCount().toString(), JupiterCyan,            Modifier.weight(1f))
+        MiniStat("EN CURSO",          viewModel.runningCount().toString(), Color(0xFFFFAA00),      Modifier.weight(1f))
+        MiniStat("LISTAS",            viewModel.doneCount().toString(),    JupiterGreen,           Modifier.weight(1f))
+        MiniStat("TOKENS\nAHORRADOS", tokensSaved.toString(),              JupiterPurple,          Modifier.weight(1f))
     }
 }
 
@@ -251,8 +494,12 @@ private fun ProviderStatusSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("PROVEEDORES", color = JupiterGray, fontSize = 10.sp,
-                fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+            Column {
+                Text("PROVEEDORES", color = JupiterGray, fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                Text("Prioridad: Ollama → OpenRouter → Claude",
+                    color = JupiterGray.copy(alpha = 0.6f), fontSize = 9.sp)
+            }
             IconButton(onClick = onRefresh, modifier = Modifier.size(28.dp)) {
                 Icon(Icons.Default.Refresh, contentDescription = "Refresh",
                     tint = JupiterGray, modifier = Modifier.size(16.dp))
@@ -261,31 +508,34 @@ private fun ProviderStatusSection(
         Spacer(Modifier.height(10.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ProviderChip(
-                name   = "Ollama",
-                active = ollama?.available == true,
-                detail = if (ollama?.available == true) ollama.activeModel.take(16) else ollama?.error?.take(20) ?: "Sin datos",
-                color  = JupiterGreen,
+                name    = "Ollama",
+                active  = ollama?.available == true,
+                detail  = if (ollama?.available == true) ollama.activeModel.take(16) else ollama?.error?.take(20) ?: "Sin datos",
+                color   = JupiterGreen,
+                badge   = "GRATIS",
                 modifier = Modifier.weight(1f)
             )
             ProviderChip(
-                name   = "OpenRouter",
-                active = openrouterKey.isNotBlank(),
-                detail = if (openrouterKey.isNotBlank()) "API key OK" else "Sin key",
-                color  = Color(0xFFFFAA00),
+                name    = "OpenRouter",
+                active  = openrouterKey.isNotBlank(),
+                detail  = if (openrouterKey.isNotBlank()) "API key OK" else "Sin key",
+                color   = Color(0xFFFFAA00),
+                badge   = "BACKUP",
                 modifier = Modifier.weight(1f)
             )
             ProviderChip(
-                name   = "Claude",
-                active = claudeKey.isNotBlank(),
-                detail = if (claudeKey.isNotBlank()) "API key OK" else "Sin key",
-                color  = JupiterPurple,
+                name    = "Claude",
+                active  = claudeKey.isNotBlank(),
+                detail  = if (claudeKey.isNotBlank()) "API key OK" else "Sin key",
+                color   = JupiterPurple,
+                badge   = "ÚLTIMO",
                 modifier = Modifier.weight(1f)
             )
         }
         if (ollama?.available == true && ollama.models.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             Text(
-                "Modelos Ollama: ${ollama.models.take(4).joinToString(", ")}",
+                "Modelos: ${ollama.models.take(4).joinToString(", ")}",
                 color = JupiterGray.copy(alpha = 0.7f), fontSize = 10.sp, lineHeight = 14.sp
             )
         }
@@ -293,7 +543,9 @@ private fun ProviderStatusSection(
 }
 
 @Composable
-private fun ProviderChip(name: String, active: Boolean, detail: String, color: Color, modifier: Modifier) {
+private fun ProviderChip(
+    name: String, active: Boolean, detail: String, color: Color, badge: String, modifier: Modifier
+) {
     val chipColor = if (active) color else JupiterGray.copy(alpha = 0.4f)
     Column(
         modifier = modifier
@@ -303,16 +555,12 @@ private fun ProviderChip(name: String, active: Boolean, detail: String, color: C
             .padding(horizontal = 8.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(RoundedCornerShape(50))
-                .background(chipColor)
-        )
+        Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(chipColor))
         Spacer(Modifier.height(4.dp))
         Text(name, color = if (active) JupiterWhite else JupiterGray,
             fontSize = 10.sp, fontWeight = FontWeight.Bold)
         Text(detail, color = chipColor, fontSize = 8.sp, lineHeight = 10.sp)
+        Text(badge, color = chipColor.copy(alpha = 0.7f), fontSize = 7.sp, letterSpacing = 0.5.sp)
     }
 }
 
@@ -321,13 +569,13 @@ private fun ProviderChip(name: String, active: Boolean, detail: String, color: C
 @Composable
 private fun TaskCard(task: TaskEntity, onDelete: () -> Unit) {
     val (statusColor, statusLabel) = when (task.status) {
-        "PENDING"  -> JupiterCyan    to "PENDIENTE"
+        "PENDING"  -> JupiterCyan       to "PENDIENTE"
         "RUNNING"  -> Color(0xFFFFAA00) to "EJECUTANDO"
         "FIXING"   -> Color(0xFFFF8800) to "CORRIGIENDO"
-        "DONE"     -> JupiterGreen   to "LISTO"
+        "DONE"     -> JupiterGreen      to "LISTO"
         "FAILED"   -> Color(0xFFFF4444) to "FALLIDO"
         "BLOCKED"  -> Color(0xFFFF2222) to "BLOQUEADO"
-        else       -> JupiterGray    to task.status
+        else       -> JupiterGray       to task.status
     }
 
     Row(
@@ -363,7 +611,7 @@ private fun TaskCard(task: TaskEntity, onDelete: () -> Unit) {
             }
             if (task.lastError.isNotBlank() && task.status in listOf("FAILED", "BLOCKED")) {
                 Spacer(Modifier.height(3.dp))
-                Text(task.lastError.take(60), color = Color(0xFFFF4444).copy(alpha = 0.8f), fontSize = 10.sp)
+                Text(task.lastError.take(80), color = Color(0xFFFF4444).copy(alpha = 0.8f), fontSize = 10.sp)
             }
             if (task.result.isNotBlank() && task.status == "DONE") {
                 Spacer(Modifier.height(4.dp))
@@ -416,8 +664,7 @@ private fun AddTaskDialog(
                 Spacer(Modifier.height(8.dp))
                 TaskField("Descripción / objetivo", desc, maxLines = 3) { desc = it }
                 Spacer(Modifier.height(10.dp))
-                Text("PRIORIDAD", color = JupiterGray, fontSize = 9.sp, letterSpacing = 1.5.sp,
-                    fontWeight = FontWeight.Bold)
+                Text("PRIORIDAD", color = JupiterGray, fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     priorities.forEach { p ->
@@ -439,7 +686,7 @@ private fun AddTaskDialog(
                         ) {
                             Text(p, color = if (selected) pColor else JupiterGray,
                                 fontSize = 9.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier.clickableNoRipple { priority = p })
+                                modifier = Modifier.clickable { priority = p })
                         }
                     }
                 }
@@ -473,6 +720,3 @@ private fun TaskField(label: String, value: String, maxLines: Int = 1, onValueCh
         )
     )
 }
-
-private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
-    this.then(Modifier.clickable(onClick = onClick))

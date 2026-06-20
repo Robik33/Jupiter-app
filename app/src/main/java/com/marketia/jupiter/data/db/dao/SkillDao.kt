@@ -10,7 +10,7 @@ interface SkillDao {
     @Query("SELECT * FROM skills WHERE name LIKE '%' || :q || '%' OR category LIKE '%' || :q || '%' OR tags LIKE '%' || :q || '%' OR resumen LIKE '%' || :q || '%' ORDER BY createdAt DESC")
     fun search(q: String): Flow<List<SkillEntity>>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAll(skills: List<SkillEntity>)
-    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(skill: SkillEntity)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(skill: SkillEntity): Long
     @Delete suspend fun delete(skill: SkillEntity)
     @Query("SELECT COUNT(*) FROM skills") suspend fun count(): Int
 }

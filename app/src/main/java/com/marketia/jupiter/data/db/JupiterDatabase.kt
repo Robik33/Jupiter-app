@@ -12,9 +12,11 @@ import com.marketia.jupiter.data.entity.*
         ProjectEntity::class,
         SystemEntity::class,
         AgentEntity::class,
-        TaskEntity::class
+        TaskEntity::class,
+        MemoryNodeEntity::class,
+        MemoryEdgeEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class JupiterDatabase : RoomDatabase() {
@@ -24,4 +26,6 @@ abstract class JupiterDatabase : RoomDatabase() {
     abstract fun systemDao(): SystemDao
     abstract fun agentDao(): AgentDao
     abstract fun taskDao(): TaskDao
+    abstract fun memoryNodeDao(): MemoryNodeDao
+    abstract fun memoryEdgeDao(): MemoryEdgeDao
 }

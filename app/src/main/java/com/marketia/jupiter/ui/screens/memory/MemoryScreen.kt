@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -25,7 +27,7 @@ import com.marketia.jupiter.ui.theme.*
 
 @Composable
 fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
-    val tabs = listOf("LINKS", "PROYECTOS", "SISTEMAS", "AGENTES")
+    val tabs = listOf("LINKS", "PROYECTOS", "SISTEMAS", "AGENTES", "NODOS")
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -33,17 +35,20 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
     val projects by viewModel.projects.collectAsState()
     val systems  by viewModel.systems.collectAsState()
     val agents   by viewModel.agents.collectAsState()
+    val nodes    by viewModel.nodes.collectAsState()
 
     Scaffold(
         containerColor = JupiterBlack,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = JupiterCyan,
-                contentColor = JupiterBlack,
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar")
+            if (selectedTab < 4) {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = JupiterCyan,
+                    contentColor = JupiterBlack,
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Agregar")
+                }
             }
         }
     ) { padding ->
@@ -67,9 +72,9 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
                         fontWeight = FontWeight.Black,
                         letterSpacing = 5.sp
                     )
-                    val total = links.size + projects.size + systems.size + agents.size
+                    val total = links.size + projects.size + systems.size + agents.size + nodes.size
                     Text(
-                        text = "$total registros almacenados",
+                        text = "$total registros · ${nodes.size} nodos semánticos",
                         color = JupiterGray,
                         fontSize = 12.sp
                     )
@@ -77,10 +82,11 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
             }
 
             // Tab row
-            TabRow(
+            ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = JupiterSurface,
-                contentColor = JupiterCyan
+                contentColor = JupiterCyan,
+                edgePadding = 0.dp
             ) {
                 tabs.forEachIndexed { i, tab ->
                     Tab(
@@ -105,11 +111,12 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
                 1 -> ProjectsTab(projects)
                 2 -> SystemsTab(systems)
                 3 -> AgentsTab(agents)
+                4 -> NodesTab(nodes, onDelete = { viewModel.deleteNode(it) })
             }
         }
     }
 
-    if (showAddDialog) {
+    if (showAddDialog && selectedTab < 4) {
         when (selectedTab) {
             0 -> AddLinkDialog(onDismiss = { showAddDialog = false }, onAdd = { url, title, cat ->
                 viewModel.addLink(url, title, cat); showAddDialog = false
@@ -132,7 +139,7 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
 @Composable
 private fun LinksTab(links: List<LinkEntity>) {
     if (links.isEmpty()) {
-        EmptyState("Sin links guardados", "Guarda URLs de recursos, herramientas o referencias")
+        EmptyState("Sin links guardados", "Guarda URLs en el tab Auto con INGESTAR LINK")
         return
     }
     LazyColumn(
@@ -143,9 +150,10 @@ private fun LinksTab(links: List<LinkEntity>) {
         items(links) { link ->
             MemoryCard(
                 accent = Color(0xFF00E5FF),
-                title = link.title,
-                sub = link.url,
-                meta = link.category
+                title  = link.title,
+                sub    = link.url,
+                meta   = link.category,
+                badge  = if (link.processed) "PROCESADO" else "PENDIENTE"
             )
         }
     }
@@ -163,13 +171,8 @@ private fun ProjectsTab(projects: List<ProjectEntity>) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(projects) { p ->
-            MemoryCard(
-                accent = Color(0xFF7C4DFF),
-                title = p.name,
-                sub = p.description,
-                meta = p.type,
-                badge = p.status
-            )
+            MemoryCard(accent = Color(0xFF7C4DFF), title = p.name, sub = p.description,
+                meta = p.type, badge = p.status)
         }
     }
 }
@@ -186,13 +189,8 @@ private fun SystemsTab(systems: List<SystemEntity>) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(systems) { s ->
-            MemoryCard(
-                accent = Color(0xFF40C4FF),
-                title = s.name,
-                sub = s.architecture,
-                meta = s.type,
-                badge = s.status
-            )
+            MemoryCard(accent = Color(0xFF40C4FF), title = s.name, sub = s.architecture,
+                meta = s.type, badge = s.status)
         }
     }
 }
@@ -209,13 +207,89 @@ private fun AgentsTab(agents: List<AgentEntity>) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(agents) { a ->
-            MemoryCard(
-                accent = Color(0xFFFF4081),
-                title = a.name,
-                sub = a.capability,
-                meta = a.model,
-                badge = a.status
-            )
+            MemoryCard(accent = Color(0xFFFF4081), title = a.name, sub = a.capability,
+                meta = a.model, badge = a.status)
+        }
+    }
+}
+
+// ── NODOS (Semantic Memory) ───────────────────────────────────────────────────
+
+@Composable
+private fun NodesTab(nodes: List<MemoryNodeEntity>, onDelete: (MemoryNodeEntity) -> Unit) {
+    if (nodes.isEmpty()) {
+        EmptyState("Sin nodos semánticos", "Los nodos se crean al ingestar links o crear skills")
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(nodes, key = { it.id }) { node ->
+            NodeCard(node = node, onDelete = { onDelete(node) })
+        }
+    }
+}
+
+@Composable
+private fun NodeCard(node: MemoryNodeEntity, onDelete: () -> Unit) {
+    val (accent, typeLabel) = when (node.type) {
+        "SKILL"   -> Color(0xFF00FF88) to "SKILL"
+        "LINK"    -> Color(0xFF00E5FF) to "LINK"
+        "PROJECT" -> Color(0xFF7C4DFF) to "PROYECTO"
+        "SYSTEM"  -> Color(0xFF40C4FF) to "SISTEMA"
+        "AGENT"   -> Color(0xFFFF4081) to "AGENTE"
+        "PROMPT"  -> Color(0xFFFFD700) to "PROMPT"
+        "API"     -> Color(0xFFFF8800) to "API"
+        "TASK"    -> Color(0xFFFF6B6B) to "TAREA"
+        else      -> JupiterGray       to node.type
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(JupiterSurface)
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(44.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(accent)
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(accent.copy(alpha = 0.15f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text(typeLabel, color = accent, fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                }
+                Spacer(Modifier.width(6.dp))
+                Text(node.label, color = JupiterWhite, fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (node.summary.isNotBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(node.summary.take(80), color = JupiterGray, fontSize = 11.sp, lineHeight = 15.sp)
+            }
+            if (node.tags.isNotBlank()) {
+                Spacer(Modifier.height(3.dp))
+                Text(node.tags, color = accent.copy(alpha = 0.6f), fontSize = 9.sp, letterSpacing = 0.3.sp)
+            }
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+            Icon(Icons.Default.Delete, contentDescription = "Eliminar",
+                tint = JupiterGray.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
         }
     }
 }
@@ -229,29 +303,24 @@ private fun MemoryCard(accent: Color, title: String, sub: String, meta: String, 
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.Top
-        ) {
+        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
             Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(accent)
+                modifier = Modifier.width(3.dp).height(48.dp)
+                    .clip(RoundedCornerShape(2.dp)).background(accent)
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, color = JupiterWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Text(title, color = JupiterWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f))
                     if (badge != null) {
                         Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                            modifier = Modifier.clip(RoundedCornerShape(4.dp))
                                 .background(accent.copy(alpha = 0.15f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Text(badge.uppercase(), color = accent, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                            Text(badge.uppercase(), color = accent, fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                         }
                     }
                 }
@@ -287,8 +356,7 @@ private fun AddLinkDialog(onDismiss: () -> Unit, onAdd: (String, String, String)
     var title by remember { mutableStateOf("") }
     var cat by remember { mutableStateOf("general") }
     JupiterDialog("Guardar Link", onDismiss, onConfirm = { onAdd(url, title, cat) },
-        confirmEnabled = url.isNotBlank() && title.isNotBlank()
-    ) {
+        confirmEnabled = url.isNotBlank() && title.isNotBlank()) {
         JupiterField("URL", url) { url = it }
         Spacer(Modifier.height(8.dp))
         JupiterField("Título", title) { title = it }
@@ -303,8 +371,7 @@ private fun AddProjectDialog(onDismiss: () -> Unit, onAdd: (String, String, Stri
     var type by remember { mutableStateOf("app") }
     var desc by remember { mutableStateOf("") }
     JupiterDialog("Nuevo Proyecto", onDismiss, onConfirm = { onAdd(name, type, desc) },
-        confirmEnabled = name.isNotBlank()
-    ) {
+        confirmEnabled = name.isNotBlank()) {
         JupiterField("Nombre", name) { name = it }
         Spacer(Modifier.height(8.dp))
         JupiterField("Tipo (app, bot, sistema...)", type) { type = it }
@@ -319,8 +386,7 @@ private fun AddSystemDialog(onDismiss: () -> Unit, onAdd: (String, String, Strin
     var type by remember { mutableStateOf("automatización") }
     var arch by remember { mutableStateOf("") }
     JupiterDialog("Nuevo Sistema", onDismiss, onConfirm = { onAdd(name, type, arch) },
-        confirmEnabled = name.isNotBlank()
-    ) {
+        confirmEnabled = name.isNotBlank()) {
         JupiterField("Nombre", name) { name = it }
         Spacer(Modifier.height(8.dp))
         JupiterField("Tipo", type) { type = it }
@@ -335,8 +401,7 @@ private fun AddAgentDialog(onDismiss: () -> Unit, onAdd: (String, String, String
     var model by remember { mutableStateOf("Claude Sonnet") }
     var cap by remember { mutableStateOf("") }
     JupiterDialog("Nuevo Agente", onDismiss, onConfirm = { onAdd(name, model, cap) },
-        confirmEnabled = name.isNotBlank()
-    ) {
+        confirmEnabled = name.isNotBlank()) {
         JupiterField("Nombre", name) { name = it }
         Spacer(Modifier.height(8.dp))
         JupiterField("Modelo base", model) { model = it }
@@ -374,20 +439,15 @@ private fun JupiterDialog(
 @Composable
 private fun JupiterField(label: String, value: String, onValueChange: (String) -> Unit) {
     TextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = value, onValueChange = onValueChange,
         label = { Text(label, fontSize = 11.sp) },
         modifier = Modifier.fillMaxWidth(),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = JupiterBlack,
-            unfocusedContainerColor = JupiterBlack,
-            focusedTextColor = JupiterWhite,
-            unfocusedTextColor = JupiterWhite,
-            focusedLabelColor = JupiterCyan,
-            unfocusedLabelColor = JupiterGray,
-            cursorColor = JupiterCyan,
-            focusedIndicatorColor = JupiterCyan,
-            unfocusedIndicatorColor = JupiterGray
+            focusedContainerColor   = JupiterBlack, unfocusedContainerColor = JupiterBlack,
+            focusedTextColor        = JupiterWhite, unfocusedTextColor      = JupiterWhite,
+            focusedLabelColor       = JupiterCyan,  unfocusedLabelColor     = JupiterGray,
+            cursorColor             = JupiterCyan,
+            focusedIndicatorColor   = JupiterCyan,  unfocusedIndicatorColor = JupiterGray
         ),
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),

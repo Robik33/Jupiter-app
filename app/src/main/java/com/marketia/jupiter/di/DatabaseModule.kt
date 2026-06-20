@@ -21,10 +21,12 @@ object DatabaseModule {
             .fallbackToDestructiveMigration()
             .build()
 
-    @Provides fun provideSkillDao(db: JupiterDatabase)   = db.skillDao()
-    @Provides fun provideLinkDao(db: JupiterDatabase)    = db.linkDao()
-    @Provides fun provideProjectDao(db: JupiterDatabase) = db.projectDao()
-    @Provides fun provideSystemDao(db: JupiterDatabase)  = db.systemDao()
-    @Provides fun provideAgentDao(db: JupiterDatabase)   = db.agentDao()
-    @Provides fun provideTaskDao(db: JupiterDatabase)    = db.taskDao()
+    @Provides fun provideSkillDao(db: JupiterDatabase)      = db.skillDao()
+    @Provides fun provideLinkDao(db: JupiterDatabase)       = db.linkDao()
+    @Provides fun provideProjectDao(db: JupiterDatabase)    = db.projectDao()
+    @Provides fun provideSystemDao(db: JupiterDatabase)     = db.systemDao()
+    @Provides fun provideAgentDao(db: JupiterDatabase)      = db.agentDao()
+    @Provides fun provideTaskDao(db: JupiterDatabase)       = db.taskDao()
+    @Provides fun provideMemoryNodeDao(db: JupiterDatabase) = db.memoryNodeDao()
+    @Provides fun provideMemoryEdgeDao(db: JupiterDatabase) = db.memoryEdgeDao()
 }

@@ -37,13 +37,12 @@ class ClaudeCodeBridge @Inject constructor(
         BridgeChannel.TELEGRAM     -> sendViaTelegram(task)
     }
 
-    // Creates a GitHub Issue on the Jupiter-app repo with the task JSON
     private suspend fun sendViaGitHubIssue(task: ClaudeCodeTask): BridgeResult =
         withContext(Dispatchers.IO) {
             val settings = settingsRepository.getCurrentSettings()
             if (settings.apiKey.isBlank()) {
                 return@withContext BridgeResult(false, BridgeChannel.GITHUB_ISSUE,
-                    "API key no configurada. Usa tu GitHub PAT en Config.")
+                    "GitHub PAT no configurado. Configura en Config > API Key.")
             }
 
             runCatching {
@@ -70,7 +69,7 @@ class ClaudeCodeBridge @Inject constructor(
 
                 if (resp.isSuccessful && url.isNotBlank()) {
                     BridgeResult(true, BridgeChannel.GITHUB_ISSUE,
-                        "Issue creado en GitHub. Claude Code procesara la tarea.", issueUrl = url)
+                        "Issue creado. Claude Code puede leer y ejecutar.", issueUrl = url)
                 } else {
                     BridgeResult(false, BridgeChannel.GITHUB_ISSUE,
                         "Error GitHub ${resp.code}: ${json.optString("message")}")
@@ -80,7 +79,6 @@ class ClaudeCodeBridge @Inject constructor(
             }
         }
 
-    // Sends to a local HTTP server running on the PC (Claude Code must listen)
     private suspend fun sendViaHttpLocal(task: ClaudeCodeTask): BridgeResult =
         withContext(Dispatchers.IO) {
             val settings = settingsRepository.getCurrentSettings()
@@ -100,18 +98,26 @@ class ClaudeCodeBridge @Inject constructor(
             }
         }
 
-    // Placeholder for Telegram — requires bot token + chat ID in settings
     private suspend fun sendViaTelegram(task: ClaudeCodeTask): BridgeResult =
         BridgeResult(false, BridgeChannel.TELEGRAM,
-            "Telegram bridge requiere BOT_TOKEN y CHAT_ID. Configura en V0.6.")
+            "Telegram bridge: configura BOT_TOKEN y CHAT_ID.")
 
-    private fun buildIssueBody(task: ClaudeCodeTask): String = """
-## JUPITER Task — ${task.priority.name}
+    private fun buildIssueBody(task: ClaudeCodeTask): String {
+        val filesSection = if (task.filesToChange.isNotEmpty())
+            task.filesToChange.joinToString("\n") { "- `$it`" }
+        else "Sin archivos especificados"
 
-**Version**: ${task.version}
-**Objetivo**: ${task.goal}
+        val stepsSection = if (task.steps.isNotEmpty())
+            task.steps.mapIndexed { i, s -> "${i + 1}. $s" }.joinToString("\n")
+        else "Sin pasos especificados"
 
-### Problema detectado
+        return """
+## [JUPITER_TASK] — ${task.priority.name}
+
+**Versión**: ${task.version}
+**Objetivo**: ${task.objective.ifBlank { task.goal }}
+
+### Problema
 ${task.problem}
 
 ### Evidencia
@@ -120,13 +126,26 @@ ${task.evidence}
 ### Cambio solicitado
 ${task.requestedChange}
 
-### Payload JSON
+### Archivos a modificar
+$filesSection
+
+### Pasos de implementación
+$stepsSection
+
+### Validación
+${task.validation.ifBlank { "Verificar que el build compila y la funcionalidad es correcta." }}
+
+### Resultado esperado
+${task.expectedResult.ifBlank { task.goal }}
+
+### JSON completo
 ```json
 ${task.toJson()}
 ```
 
 ---
-*Generado automaticamente por JUPITER Android v${task.version}*
-*Requiere aprobacion del usuario antes de implementar*
-    """.trimIndent()
+*Generado automáticamente por JÚPITER Android v${task.version}*
+*Label: `jupiter-task` — Claude Code PC puede leer y ejecutar este issue*
+        """.trimIndent()
+    }
 }
