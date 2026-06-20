@@ -1,0 +1,22 @@
+{
+  "versionCode": 9,
+  "versionName": "0.9.0",
+  "apkUrl": "https://github.com/Robik33/Jupiter-app/releases/download/v0.9.0/jupiter-v0.9.0-release.apk",
+  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v0.9.0",
+  "sha256": "3ccd9e87deada8956daa71711206478ebcbf1a0dc84b8a3d0538133a099180eb",
+  "sizeBytes": 45159468,
+  "mandatory": false,
+  "changelog": [
+    "Sistema de actualización remota — JÚPITER se actualiza solo",
+    "UpdateManager: detecta versión, descarga APK, verifica SHA256, abre instalador",
+    "FileProvider configurado para instalación segura en Android",
+    "Settings: sección ACTUALIZACIÓN REMOTA con progreso en tiempo real",
+    "JupiterOrchestrator: detección de intención en 8 categorías",
+    "KnowledgeIngestionEngine: URL → LinkEntity + SkillEntity + MemoryNode",
+    "SkillCreatorEngine: conversión de texto a SkillEntity persistido",
+    "Memoria semántica: MemoryNodeEntity + MemoryEdgeEntity en Room DB v5",
+    "ClaudeCodeBridge V0.8: formato ejecutable con steps, validation, expectedResult",
+    "Auto tab: panel COMANDO con INGESTAR LINK integrado",
+    "Memory tab: pestaña NODOS semánticos"
+  ]
+}
