@@ -17,6 +17,8 @@ interface TaskDao {
 
     @Query("SELECT COUNT(*) FROM autonomy_tasks WHERE status = 'DONE'") suspend fun countDone(): Int
     @Query("SELECT COUNT(*) FROM autonomy_tasks WHERE status = 'PENDING'") suspend fun countPending(): Int
+    @Query("SELECT * FROM autonomy_tasks WHERE issueUrl != '' ORDER BY createdAt ASC")
+    suspend fun getWithIssueUrl(): List<TaskEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(task: TaskEntity): Long
     @Update suspend fun update(task: TaskEntity)

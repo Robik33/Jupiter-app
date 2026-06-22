@@ -16,7 +16,7 @@ import com.marketia.jupiter.data.entity.*
         MemoryNodeEntity::class,
         MemoryEdgeEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class JupiterDatabase : RoomDatabase() {

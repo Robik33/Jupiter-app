@@ -1,22 +1,20 @@
 {
-  "versionCode": 10,
-  "versionName": "1.0.0",
-  "apkUrl": "https://files.catbox.moe/xttpof.apk",
-  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.0.0",
-  "sha256": "3814dfcf0aa165ecd1dcff265f226ba1c136129067d77ca4d4b1a73d48059e52",
-  "sizeBytes": 45225004,
+  "versionCode": 11,
+  "versionName": "1.1.0",
+  "apkUrl": "https://files.catbox.moe/yg27az.apk",
+  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.1.0",
+  "sha256": "5A43F23064DC096DEA6FE6AF2890AE8F8929D3144D906A4BA78A1555AF536B42",
+  "sizeBytes": 45257768,
   "mandatory": false,
   "changelog": [
-    "P0-1: GitHub PAT separado del API Key — ClaudeCodeBridge usa PAT real",
-    "P0-2: CREATE_SKILL crea SkillEntity real offline sin necesitar IA",
-    "P0-3: CREATE_SYSTEM crea SystemEntity real — SAVE_SYSTEM action corregida",
-    "P0-4: Build estable — lint desactivado en release, d8MaxHeapSize=1g",
-    "P1-1: pollIssueStatus() en ClaudeCodeBridge — detecta PENDING/RUNNING/DONE/BLOCKED",
-    "P1-2: Tab RELACIONES en memoria — MemoryEdgeEntity visible en UI",
-    "P1-3: SelfEvaluationEngine actualizado a estado real V1.0",
-    "P1-4: OpenRouter usa mistral-7b-instruct:free en vez de llama-3.2-3b",
-    "Settings: campo GitHub PAT independiente con toggle de visibilidad",
-    "JupiterOrchestrator: inyecta SkillCreatorEngine para skills offline",
-    "MemoryScreen: tab RELACIONES muestra SKILL→LINK, PROJECT→TASK edges"
+    "V1.1 Bridge First Architecture — REGLAs 1-8 implementadas",
+    "TaskEntity: 6 campos remote (issueUrl, remoteStatus, remoteResult, remoteApkUrl, remoteReleaseUrl, lastRemoteCheckAt)",
+    "ClaudeCodeBridge.pollFull(): extrae labels + comentarios (APK_URL, RELEASE_URL, RESULT, BLOCKED)",
+    "Auto-sync al abrir la app — sincronía remota en background (REGLA 5)",
+    "AutonomyScreen: badge remoteStatus, boton INSTALAR APK, boton ABRIR RELEASE",
+    "AutonomyScreen: boton SINCRONIZAR con spinner + contador de actualizaciones",
+    "PromptQueue: CODE_TASK + HIGH/CRITICAL auto-envian a Claude Code (REGLA 7)",
+    "Room DB v6 — fallbackToDestructiveMigration aplicado",
+    "BridgeOpState: feedback visual de envio en tiempo real"
   ]
 }

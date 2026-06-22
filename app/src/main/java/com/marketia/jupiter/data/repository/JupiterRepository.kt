@@ -90,10 +90,19 @@ class JupiterRepository @Inject constructor(
     suspend fun submitTask(title: String, description: String, priority: String = "MEDIUM"): Long =
         taskDao.insert(TaskEntity(title = title, description = description, priority = priority))
 
-    suspend fun updateTask(task: TaskEntity)      = taskDao.update(task)
-    suspend fun getNextPendingTask(): TaskEntity? = taskDao.getNextPending()
-    suspend fun countDoneTasks(): Int             = taskDao.countDone()
-    suspend fun countPendingTasks(): Int          = taskDao.countPending()
-    suspend fun clearDoneTasks()                  = taskDao.clearDone()
-    suspend fun deleteTask(task: TaskEntity)      = taskDao.delete(task)
+    suspend fun updateTask(task: TaskEntity)           = taskDao.update(task)
+    suspend fun getNextPendingTask(): TaskEntity?      = taskDao.getNextPending()
+    suspend fun countDoneTasks(): Int                  = taskDao.countDone()
+    suspend fun countPendingTasks(): Int               = taskDao.countPending()
+    suspend fun clearDoneTasks()                       = taskDao.clearDone()
+    suspend fun deleteTask(task: TaskEntity)           = taskDao.delete(task)
+    suspend fun getTasksWithIssueUrl(): List<TaskEntity> = taskDao.getWithIssueUrl()
+
+    suspend fun submitTaskWithIssue(title: String, description: String, priority: String = "MEDIUM", issueUrl: String): Long {
+        return taskDao.insert(TaskEntity(
+            title = title, description = description,
+            priority = priority, issueUrl = issueUrl,
+            remoteStatus = "PENDING"
+        ))
+    }
 }

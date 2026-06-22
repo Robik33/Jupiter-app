@@ -1,5 +1,7 @@
 package com.marketia.jupiter.ui.screens.autonomy
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -31,6 +34,8 @@ import com.marketia.jupiter.core.ingestion.IngestionStatus
 import com.marketia.jupiter.core.orchestrator.UserIntent
 import com.marketia.jupiter.data.entity.TaskEntity
 import com.marketia.jupiter.ui.theme.*
+import com.marketia.jupiter.ui.screens.autonomy.BridgeOpState
+import com.marketia.jupiter.ui.screens.autonomy.SyncState
 
 @Composable
 fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
@@ -41,6 +46,8 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
     val settings       by viewModel.settings.collectAsState()
     val commandState   by viewModel.commandState.collectAsState()
     val ingestionState by viewModel.ingestionState.collectAsState()
+    val syncState      by viewModel.syncState.collectAsState()
+    val bridgeState    by viewModel.bridgeState.collectAsState()
     var showAddDialog  by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().background(JupiterBlack)) {
@@ -79,10 +86,17 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
             item {
                 EngineControlRow(
                     engineState = engineState,
+                    syncState   = syncState,
                     onStart     = { viewModel.startEngine() },
                     onStop      = { viewModel.stopEngine() },
-                    onAddTask   = { showAddDialog = true }
+                    onAddTask   = { showAddDialog = true },
+                    onSync      = { viewModel.syncRemoteTasks() }
                 )
+            }
+
+            // ── Bridge state feedback ────────────────────────────────────────
+            if (bridgeState !is BridgeOpState.Idle) {
+                item { BridgeFeedbackCard(bridgeState, onDismiss = { viewModel.clearBridgeState() }) }
             }
 
             // ── Stats bar ────────────────────────────────────────────────────
@@ -131,7 +145,12 @@ fun AutonomyScreen(viewModel: AutonomyViewModel = hiltViewModel()) {
                 }
             } else {
                 items(tasks, key = { it.id }) { task ->
-                    TaskCard(task = task, onDelete = { viewModel.deleteTask(task) })
+                    TaskCard(
+                        task            = task,
+                        bridgeState     = bridgeState,
+                        onDelete        = { viewModel.deleteTask(task) },
+                        onSendToBridge  = { viewModel.sendTaskToBridge(task) }
+                    )
                 }
             }
 
@@ -412,37 +431,66 @@ private fun EngineStateBadge(state: EngineState) {
 @Composable
 private fun EngineControlRow(
     engineState: EngineState,
+    syncState: SyncState,
     onStart: () -> Unit,
     onStop: () -> Unit,
-    onAddTask: () -> Unit
+    onAddTask: () -> Unit,
+    onSync: () -> Unit
 ) {
     val isRunning = engineState is EngineState.Running || engineState is EngineState.Processing
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    val isSyncing = syncState is SyncState.Syncing
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = if (isRunning) onStop else onStart,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isRunning) Color(0xFFFF4444) else JupiterGreen
+                )
+            ) {
+                Text(
+                    if (isRunning) "⬛  DETENER" else "▶  INICIAR LOOP",
+                    color = JupiterBlack, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp
+                )
+            }
+            OutlinedButton(
+                onClick = onAddTask,
+                modifier = Modifier.height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    brush = androidx.compose.ui.graphics.SolidColor(JupiterCyan)
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = JupiterCyan)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("TAREA", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
         Button(
-            onClick = if (isRunning) onStop else onStart,
-            modifier = Modifier.weight(1f).height(48.dp),
+            onClick = onSync,
+            enabled = !isSyncing,
+            modifier = Modifier.fillMaxWidth().height(44.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isRunning) Color(0xFFFF4444) else JupiterGreen
+                containerColor = if (isSyncing) JupiterSurface else Color(0xFF1A237E)
             )
         ) {
-            Text(
-                if (isRunning) "⬛  DETENER" else "▶  INICIAR LOOP",
-                color = JupiterBlack, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp
-            )
-        }
-        OutlinedButton(
-            onClick = onAddTask,
-            modifier = Modifier.height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            border = ButtonDefaults.outlinedButtonBorder.copy(
-                brush = androidx.compose.ui.graphics.SolidColor(JupiterCyan)
-            ),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = JupiterCyan)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(4.dp))
-            Text("TAREA", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            if (isSyncing) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = JupiterCyan, strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text("SINCRONIZANDO...", color = JupiterCyan, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            } else {
+                Icon(Icons.Default.Refresh, contentDescription = null,
+                    modifier = Modifier.size(16.dp), tint = JupiterCyan)
+                Spacer(Modifier.width(6.dp))
+                val syncLabel = when (syncState) {
+                    is SyncState.Done -> "SINCRONIZADO (${syncState.updated} actualizado${if (syncState.updated != 1) "s" else ""})"
+                    else -> "SINCRONIZAR TAREAS REMOTAS"
+                }
+                Text(syncLabel, color = JupiterCyan, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            }
         }
     }
 }
@@ -567,7 +615,13 @@ private fun ProviderChip(
 // ── Task card ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun TaskCard(task: TaskEntity, onDelete: () -> Unit) {
+private fun TaskCard(
+    task: TaskEntity,
+    bridgeState: BridgeOpState,
+    onDelete: () -> Unit,
+    onSendToBridge: () -> Unit
+) {
+    val context = LocalContext.current
     val (statusColor, statusLabel) = when (task.status) {
         "PENDING"  -> JupiterCyan       to "PENDIENTE"
         "RUNNING"  -> Color(0xFFFFAA00) to "EJECUTANDO"
@@ -577,55 +631,167 @@ private fun TaskCard(task: TaskEntity, onDelete: () -> Unit) {
         "BLOCKED"  -> Color(0xFFFF2222) to "BLOQUEADO"
         else       -> JupiterGray       to task.status
     }
+    val hasIssue    = task.issueUrl.isNotBlank()
+    val hasApk      = task.remoteApkUrl.isNotBlank()
+    val hasRelease  = task.remoteReleaseUrl.isNotBlank()
+    val isSending   = bridgeState is BridgeOpState.Sending && (bridgeState as BridgeOpState.Sending).taskId == task.id
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(JupiterSurface)
             .border(1.dp, statusColor.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-            .padding(14.dp),
-        verticalAlignment = Alignment.Top
+            .padding(14.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .width(3.dp)
-                .height(40.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(statusColor)
-        )
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(task.title, color = JupiterWhite, fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                StatusTag(statusLabel, statusColor)
+        Row(verticalAlignment = Alignment.Top) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(statusColor)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(task.title, color = JupiterWhite, fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    StatusTag(statusLabel, statusColor)
+                }
+                if (hasIssue) {
+                    Spacer(Modifier.height(3.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val remoteColor = when (task.remoteStatus) {
+                            "DONE"    -> JupiterGreen
+                            "RUNNING" -> Color(0xFFFFAA00)
+                            "BLOCKED" -> Color(0xFFFF2222)
+                            else      -> JupiterGray
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(remoteColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text("CLAUDE: ${task.remoteStatus.ifBlank { "PENDING" }}",
+                                color = remoteColor, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            task.issueUrl.substringAfterLast("/").let { "#$it" },
+                            color = JupiterGray.copy(alpha = 0.7f), fontSize = 9.sp
+                        )
+                    }
+                }
+                if (task.description.isNotBlank()) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(task.description.take(80), color = JupiterGray, fontSize = 11.sp, lineHeight = 15.sp)
+                }
+                if (task.lastError.isNotBlank() && task.status in listOf("FAILED", "BLOCKED")) {
+                    Spacer(Modifier.height(3.dp))
+                    Text(task.lastError.take(80), color = Color(0xFFFF4444).copy(alpha = 0.8f), fontSize = 10.sp)
+                }
+                val displayResult = task.remoteResult.ifBlank { task.result }
+                if (displayResult.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(displayResult.take(140), color = JupiterWhite.copy(alpha = 0.8f),
+                        fontSize = 11.sp, lineHeight = 15.sp)
+                }
+                if (task.attempts > 0) {
+                    Spacer(Modifier.height(3.dp))
+                    Text("Intentos: ${task.attempts} · Prioridad: ${task.priority}",
+                        color = JupiterGray.copy(alpha = 0.6f), fontSize = 9.sp)
+                }
             }
-            if (task.description.isNotBlank()) {
-                Spacer(Modifier.height(3.dp))
-                Text(task.description.take(80), color = JupiterGray, fontSize = 11.sp, lineHeight = 15.sp)
-            }
-            if (task.provider.isNotBlank() && task.status == "DONE") {
-                Spacer(Modifier.height(3.dp))
-                Text("via ${task.provider}", color = JupiterGreen.copy(alpha = 0.7f), fontSize = 10.sp)
-            }
-            if (task.lastError.isNotBlank() && task.status in listOf("FAILED", "BLOCKED")) {
-                Spacer(Modifier.height(3.dp))
-                Text(task.lastError.take(80), color = Color(0xFFFF4444).copy(alpha = 0.8f), fontSize = 10.sp)
-            }
-            if (task.result.isNotBlank() && task.status == "DONE") {
-                Spacer(Modifier.height(4.dp))
-                Text(task.result.take(120), color = JupiterWhite.copy(alpha = 0.8f), fontSize = 11.sp, lineHeight = 15.sp)
-            }
-            if (task.attempts > 0) {
-                Spacer(Modifier.height(3.dp))
-                Text("Intentos: ${task.attempts} · Prioridad: ${task.priority}",
-                    color = JupiterGray.copy(alpha = 0.6f), fontSize = 9.sp)
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Delete, contentDescription = "Eliminar",
+                    tint = JupiterGray.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
             }
         }
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Eliminar",
-                tint = JupiterGray.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+
+        // Remote action row
+        if (hasApk || hasRelease || !hasIssue) {
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!hasIssue) {
+                    OutlinedButton(
+                        onClick  = onSendToBridge,
+                        enabled  = !isSending,
+                        modifier = Modifier.height(36.dp),
+                        shape    = RoundedCornerShape(8.dp),
+                        border   = ButtonDefaults.outlinedButtonBorder.copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(
+                                if (isSending) JupiterGray else Color(0xFF7C4DFF)
+                            )
+                        ),
+                        colors   = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (isSending) JupiterGray else Color(0xFF7C4DFF)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp)
+                    ) {
+                        Text(
+                            if (isSending) "ENVIANDO..." else "ENVIAR A CLAUDE",
+                            fontSize = 10.sp, fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                if (hasApk) {
+                    Button(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(task.remoteApkUrl)))
+                        },
+                        modifier = Modifier.height(36.dp),
+                        shape  = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = JupiterGreen),
+                        contentPadding = PaddingValues(horizontal = 10.dp)
+                    ) {
+                        Text("INSTALAR APK", color = JupiterBlack, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                    }
+                }
+                if (hasRelease) {
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(task.remoteReleaseUrl)))
+                        },
+                        modifier = Modifier.height(36.dp),
+                        shape  = RoundedCornerShape(8.dp),
+                        border = ButtonDefaults.outlinedButtonBorder.copy(
+                            brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFFFAA00))
+                        ),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFFAA00)),
+                        contentPadding = PaddingValues(horizontal = 10.dp)
+                    ) {
+                        Text("ABRIR RELEASE", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BridgeFeedbackCard(state: BridgeOpState, onDismiss: () -> Unit) {
+    val (color, text) = when (state) {
+        is BridgeOpState.Sending -> JupiterCyan to "Enviando tarea #${state.taskId} a Claude Code..."
+        is BridgeOpState.Sent    -> JupiterGreen to "Issue creado: ${state.issueUrl}"
+        is BridgeOpState.Error   -> Color(0xFFFF4444) to "Error bridge: ${state.message}"
+        else                     -> return
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.08f))
+            .border(1.dp, color.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text, color = color, fontSize = 11.sp, modifier = Modifier.weight(1f), lineHeight = 14.sp)
+        if (state !is BridgeOpState.Sending) {
+            TextButton(onClick = onDismiss, contentPadding = PaddingValues(0.dp)) {
+                Text("✕", color = JupiterGray, fontSize = 12.sp)
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -21,6 +22,14 @@ data class BridgeResult(
 )
 
 enum class IssueStatus { PENDING, RUNNING, DONE, BLOCKED, UNKNOWN }
+
+data class RemotePollResult(
+    val status: IssueStatus,
+    val result: String = "",
+    val apkUrl: String = "",
+    val releaseUrl: String = "",
+    val blockedReason: String = ""
+)
 
 @Singleton
 class ClaudeCodeBridge @Inject constructor(
@@ -132,6 +141,76 @@ class ClaudeCodeBridge @Inject constructor(
                 else                            -> IssueStatus.PENDING
             }
         }.getOrDefault(IssueStatus.UNKNOWN)
+    }
+
+    suspend fun pollFull(issueUrl: String): RemotePollResult = withContext(Dispatchers.IO) {
+        val settings = settingsRepository.getCurrentSettings()
+        if (settings.githubPat.isBlank()) return@withContext RemotePollResult(IssueStatus.UNKNOWN)
+        val apiUrl = issueUrl
+            .replace("https://github.com/", "https://api.github.com/repos/")
+
+        runCatching {
+            val authHeader = "token ${settings.githubPat}"
+            val accept = "application/vnd.github.v3+json"
+
+            // Fetch issue state + labels
+            val issueReq = Request.Builder().url(apiUrl).get()
+                .header("Authorization", authHeader).header("Accept", accept).build()
+            val issueResp = http.newCall(issueReq).execute()
+            val issueJson = JSONObject(issueResp.body?.string() ?: return@runCatching RemotePollResult(IssueStatus.UNKNOWN))
+
+            val issueState = issueJson.optString("state", "open")
+            val labels = issueJson.optJSONArray("labels")
+            val labelNames = (0 until (labels?.length() ?: 0)).map {
+                labels!!.getJSONObject(it).optString("name")
+            }
+
+            val status = when {
+                "jupiter-done"    in labelNames -> IssueStatus.DONE
+                "jupiter-running" in labelNames -> IssueStatus.RUNNING
+                "jupiter-blocked" in labelNames -> IssueStatus.BLOCKED
+                issueState == "closed"          -> IssueStatus.DONE
+                else                            -> IssueStatus.PENDING
+            }
+
+            // Fetch comments to extract structured data
+            val commentsReq = Request.Builder().url("$apiUrl/comments?per_page=20").get()
+                .header("Authorization", authHeader).header("Accept", accept).build()
+            val commentsResp = http.newCall(commentsReq).execute()
+            val commentsBody = commentsResp.body?.string() ?: "[]"
+            val commentsArray = runCatching { JSONArray(commentsBody) }.getOrDefault(JSONArray())
+
+            var apkUrl = ""
+            var releaseUrl = ""
+            var result = ""
+            var blockedReason = ""
+
+            // Scan comments from newest to oldest
+            for (i in (commentsArray.length() - 1) downTo 0) {
+                val body = commentsArray.getJSONObject(i).optString("body", "")
+                apkUrl       = apkUrl.ifBlank { extractTag(body, "APK_URL") }
+                releaseUrl   = releaseUrl.ifBlank { extractTag(body, "RELEASE_URL") }
+                result       = result.ifBlank { extractTag(body, "RESULT") }
+                blockedReason = blockedReason.ifBlank { extractTag(body, "BLOCKED") }
+                if (apkUrl.isNotBlank() && releaseUrl.isNotBlank() && result.isNotBlank()) break
+            }
+
+            RemotePollResult(status, result, apkUrl, releaseUrl, blockedReason)
+        }.getOrDefault(RemotePollResult(IssueStatus.UNKNOWN))
+    }
+
+    private fun extractTag(body: String, tag: String): String {
+        val patterns = listOf(
+            Regex("\\*\\*$tag\\*\\*:?\\s*([^\\n]+)"),  // **TAG**: value
+            Regex("$tag:?\\s*([^\\n]+)"),                // TAG: value
+            Regex("`$tag`[:\\s]+([^\\n]+)")              // `TAG`: value
+        )
+        for (p in patterns) {
+            val match = p.find(body) ?: continue
+            val value = match.groupValues[1].trim().trimEnd('.')
+            if (value.isNotBlank()) return value
+        }
+        return ""
     }
 
     private fun buildIssueBody(task: ClaudeCodeTask): String {
