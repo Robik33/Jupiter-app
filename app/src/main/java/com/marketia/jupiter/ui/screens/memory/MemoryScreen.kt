@@ -27,7 +27,7 @@ import com.marketia.jupiter.ui.theme.*
 
 @Composable
 fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
-    val tabs = listOf("LINKS", "PROYECTOS", "SISTEMAS", "AGENTES", "NODOS")
+    val tabs = listOf("LINKS", "PROYECTOS", "SISTEMAS", "AGENTES", "NODOS", "RELACIONES")
     var selectedTab by remember { mutableIntStateOf(0) }
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -36,11 +36,12 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
     val systems  by viewModel.systems.collectAsState()
     val agents   by viewModel.agents.collectAsState()
     val nodes    by viewModel.nodes.collectAsState()
+    val edges    by viewModel.edges.collectAsState()
 
     Scaffold(
         containerColor = JupiterBlack,
         floatingActionButton = {
-            if (selectedTab < 4) {
+            if (selectedTab < 5) {
                 FloatingActionButton(
                     onClick = { showAddDialog = true },
                     containerColor = JupiterCyan,
@@ -74,7 +75,7 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
                     )
                     val total = links.size + projects.size + systems.size + agents.size + nodes.size
                     Text(
-                        text = "$total registros · ${nodes.size} nodos semánticos",
+                        text = "$total registros · ${nodes.size} nodos · ${edges.size} relaciones",
                         color = JupiterGray,
                         fontSize = 12.sp
                     )
@@ -112,11 +113,12 @@ fun MemoryScreen(viewModel: MemoryViewModel = hiltViewModel()) {
                 2 -> SystemsTab(systems)
                 3 -> AgentsTab(agents)
                 4 -> NodesTab(nodes, onDelete = { viewModel.deleteNode(it) })
+                5 -> EdgesTab(edges)
             }
         }
     }
 
-    if (showAddDialog && selectedTab < 4) {
+    if (showAddDialog && selectedTab < 5) {
         when (selectedTab) {
             0 -> AddLinkDialog(onDismiss = { showAddDialog = false }, onAdd = { url, title, cat ->
                 viewModel.addLink(url, title, cat); showAddDialog = false
@@ -290,6 +292,69 @@ private fun NodeCard(node: MemoryNodeEntity, onDelete: () -> Unit) {
         IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
             Icon(Icons.Default.Delete, contentDescription = "Eliminar",
                 tint = JupiterGray.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
+        }
+    }
+}
+
+// ── RELACIONES (Memory Edges) ─────────────────────────────────────────────────
+
+@Composable
+private fun EdgesTab(edges: List<MemoryEdgeEntity>) {
+    if (edges.isEmpty()) {
+        EmptyState("Sin relaciones", "Las relaciones se crean al conectar skills, proyectos y sistemas")
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(edges, key = { it.id }) { edge ->
+            EdgeCard(edge)
+        }
+    }
+}
+
+@Composable
+private fun EdgeCard(edge: MemoryEdgeEntity) {
+    val accent = Color(0xFF8C9EFF)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(JupiterSurface)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(36.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(accent)
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "${edge.fromType}#${edge.fromId}  →  ${edge.toType}#${edge.toId}",
+                color = JupiterWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(accent.copy(alpha = 0.15f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text(edge.relation, color = accent, fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                }
+                if (edge.label.isNotBlank()) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(edge.label, color = JupiterGray, fontSize = 11.sp)
+                }
+            }
         }
     }
 }

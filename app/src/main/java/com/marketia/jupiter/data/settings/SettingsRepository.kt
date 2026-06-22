@@ -21,7 +21,8 @@ data class AppSettings(
     val claudeKey: String      = "",
     val openrouterKey: String  = "",
     val geminiKey: String      = "",
-    val deepseekKey: String    = ""
+    val deepseekKey: String    = "",
+    val githubPat: String      = ""
 )
 
 @Singleton
@@ -40,7 +41,8 @@ class SettingsRepository @Inject constructor(
             claudeKey     = prefs[JupiterSettings.CLAUDE_KEY]     ?: "",
             openrouterKey = prefs[JupiterSettings.OPENROUTER_KEY] ?: "",
             geminiKey     = prefs[JupiterSettings.GEMINI_KEY]     ?: "",
-            deepseekKey   = prefs[JupiterSettings.DEEPSEEK_KEY]   ?: ""
+            deepseekKey   = prefs[JupiterSettings.DEEPSEEK_KEY]   ?: "",
+            githubPat     = prefs[JupiterSettings.GITHUB_PAT]     ?: ""
         )
     }
 
@@ -71,6 +73,7 @@ class SettingsRepository @Inject constructor(
     suspend fun setOpenrouterKey(k: String) = edit { this[JupiterSettings.OPENROUTER_KEY] = k }
     suspend fun setGeminiKey(k: String)     = edit { this[JupiterSettings.GEMINI_KEY]     = k }
     suspend fun setDeepseekKey(k: String)   = edit { this[JupiterSettings.DEEPSEEK_KEY]   = k }
+    suspend fun setGithubPat(k: String)     = edit { this[JupiterSettings.GITHUB_PAT]     = k }
 
     private suspend fun edit(block: MutablePreferences.() -> Unit) {
         dataStore.edit { it.block() }

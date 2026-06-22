@@ -15,4 +15,5 @@ object JupiterSettings {
     val OPENROUTER_KEY  = stringPreferencesKey("openrouter_key")
     val GEMINI_KEY      = stringPreferencesKey("gemini_key")
     val DEEPSEEK_KEY    = stringPreferencesKey("deepseek_key")
+    val GITHUB_PAT      = stringPreferencesKey("github_pat")
 }

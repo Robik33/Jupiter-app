@@ -110,32 +110,41 @@ class SelfEvaluationEngine @Inject constructor(
             missing.add("Agentes IA (sin bots creados aun)")
         }
 
-        // Active modules
+        // Active modules — V1.0 real state
         val activeModules = listOf(
             "NUCLEO (Canvas animado)",
-            "SKILLS (${skills.size} categorias)",
-            "MEMORIA (Room DB v2)",
-            "VOZ (STT + TTS)",
+            "SKILLS (${skills.size} en DB, creación offline real)",
+            "MEMORIA (Room DB v5 — 8 entidades incl. MemoryNode+MemoryEdge)",
+            "VOZ (STT: ${if (sttAvailable) "disponible" else "no disponible"} · TTS: activo)",
             "AI ROUTER (${settings.provider.label})",
-            "REGISTROS (Tool, Skill, Agent)",
-            "CONFIGURACION (DataStore)"
+            "REGISTROS (Skill, Link, Project, System, Agent, Task, MemoryNode, MemoryEdge)",
+            "CONFIGURACION (DataStore Preferences)",
+            "CLAUDECODEBRIDGE (GitHub Issues → PC)",
+            "UPDATE MANAGER (SHA256 + DownloadManager + FileProvider)",
+            "ORCHESTRATOR (8 intenciones + SkillCreatorEngine offline)",
+            "AUTONOMY ENGINE (PLAN→EXECUTE→VERIFY→FIX×5→REPORT)"
         )
 
-        val availableSkills = listOf("WebSearch", "Memory", "VoiceSettings", "GitHub", "APKBuild") +
-                              skills.map { it.name }
+        val availableSkills = listOf(
+            "WebSearch", "Memory", "VoiceSettings", "GitHub",
+            "APKBuild", "ClaudeCodeBridge", "UpdateManager", "KnowledgeIngestion"
+        ) + skills.map { it.name }
 
-        // V0.5 capabilities not yet implemented
+        // V1.0 real missing capabilities
+        if (settings.githubPat.isBlank()) {
+            missing.add("GitHub PAT (requerido para ClaudeCodeBridge)")
+        }
         missing.addAll(listOf(
-            "ClaudeCode Bridge (programacion remota)",
-            "ScreenshotAnalysis (Vision IA)",
-            "PlaywrightBridge (navegacion web)",
-            "AutoInstall APK (con aprobacion)"
+            "ScreenshotAnalysis (Vision IA — V1.2)",
+            "PlaywrightBridge (navegacion web — V1.2)",
+            "STT entrada de voz (V1.1)"
         ))
 
         recommendations.apply {
             if (links.size > 10) add("Tienes ${links.size} links guardados. Considera organizarlos por categoria.")
             if (skills.size < 7) add("Faltan skills en la base de datos. Ejecutar seed.")
-            add("V0.5 agrega autoevaluacion y bridge con Claude Code en PC.")
+            if (settings.githubPat.isBlank()) add("Configura GitHub PAT en Config para activar ClaudeCodeBridge.")
+            add("V1.0: CREATE_SKILL y CREATE_SYSTEM ahora crean entidades reales sin necesitar IA.")
         }
 
         return EvaluationReport(

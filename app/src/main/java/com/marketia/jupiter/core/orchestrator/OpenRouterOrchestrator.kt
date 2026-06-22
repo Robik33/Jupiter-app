@@ -33,7 +33,7 @@ class OpenRouterOrchestrator @Inject constructor(
             if (key.isBlank()) return@withContext null
             runCatching {
                 val body = JSONObject().apply {
-                    put("model", "meta-llama/llama-3.2-3b-instruct:free")
+                    put("model", "mistralai/mistral-7b-instruct:free")
                     put("messages", JSONArray().apply {
                         put(JSONObject().apply { put("role","system"); put("content", systemPrompt) })
                         put(JSONObject().apply { put("role","user"); put("content", userMessage) })

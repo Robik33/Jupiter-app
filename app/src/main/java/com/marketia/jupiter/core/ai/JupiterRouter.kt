@@ -77,6 +77,10 @@ class JupiterRouter @Inject constructor(
                 val name = result.params["name"] ?: userInput
                 repository.addProject(name, result.params["type"] ?: "proyecto", result.params["description"] ?: "")
             }
+            "SAVE_SYSTEM" -> {
+                val name = result.params["name"] ?: userInput
+                repository.addSystem(name, result.params["type"] ?: "sistema", result.params["description"] ?: "")
+            }
             "MEMORY_SAVE" -> {
                 repository.addProject(result.params["content"] ?: userInput, "nota", "Guardado por voz")
             }

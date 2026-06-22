@@ -2,6 +2,7 @@ package com.marketia.jupiter.core.orchestrator
 
 import com.marketia.jupiter.core.autonomy.TaskType
 import com.marketia.jupiter.core.autonomy.TokenSaverRouter
+import com.marketia.jupiter.core.skills.SkillCreatorEngine
 import com.marketia.jupiter.data.repository.JupiterRepository
 import com.marketia.jupiter.data.settings.SettingsRepository
 import javax.inject.Inject
@@ -25,11 +26,33 @@ data class OrchestratorResult(
 class JupiterOrchestrator @Inject constructor(
     private val repository: JupiterRepository,
     private val tokenSaver: TokenSaverRouter,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val skillCreator: SkillCreatorEngine
 ) {
     suspend fun process(command: String): OrchestratorResult {
         val intent = detectIntent(command)
         val settings = settingsRepository.getCurrentSettings()
+
+        // CREATE_SKILL is always local — no AI needed, creates real SkillEntity
+        if (intent == UserIntent.CREATE_SKILL) {
+            val skillId = runCatching {
+                skillCreator.createFromText(
+                    name     = command.take(60),
+                    content  = command,
+                    category = "general",
+                    source   = "voz"
+                )
+            }.getOrDefault(-1L)
+            val taskId = runCatching { repository.submitTask("CREAR SKILL: ${command.take(50)}", command, "MEDIUM") }.getOrDefault(0L)
+            return OrchestratorResult(
+                intent     = intent,
+                plan       = "1. Crear SkillEntity\n2. Guardar en Room DB\n3. Disponible en SKILLS",
+                provider   = "LOCAL",
+                nextAction = if (skillId > 0) "Skill creado (id=$skillId). Ver en pantalla SKILLS." else "Error creando skill.",
+                status     = if (skillId > 0) "QUEUED" else "ERROR",
+                taskId     = taskId
+            )
+        }
 
         val (title, priority) = titleAndPriority(intent, command)
 

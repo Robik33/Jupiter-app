@@ -20,6 +20,7 @@ class MemoryViewModel @Inject constructor(
     val systems  = repository.systems.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val agents   = repository.agents.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val nodes    = repository.nodes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val edges    = repository.edges.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun addLink(url: String, title: String, category: String) {
         viewModelScope.launch { repository.saveLink(url, title, category) }

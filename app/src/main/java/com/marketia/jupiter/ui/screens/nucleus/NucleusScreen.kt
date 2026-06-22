@@ -36,6 +36,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.ui.components.JupiterNucleus
+import com.marketia.jupiter.ui.components.OracleStateWidget
 import com.marketia.jupiter.ui.theme.*
 
 @Composable
@@ -44,6 +45,7 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
     val inputText    by viewModel.inputText.collectAsState()
     val response     by viewModel.response.collectAsState()
     val partialVoice by viewModel.partialVoice.collectAsState()
+    val oracleState  by viewModel.oracleState.collectAsState()
     val context = LocalContext.current
 
     val micLauncher = rememberLauncherForActivityResult(
@@ -71,6 +73,12 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(Modifier.weight(0.08f))
+
+            // ORACLE state bar
+            OracleStateWidget(
+                state = oracleState,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
             // NÚCLEO title
             Text(

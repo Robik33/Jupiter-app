@@ -30,7 +30,7 @@ object JupiterBrain {
 
             creates(text, "sistema") -> resp(input, "CREATE_SYSTEM",
                 "Diseñando arquitectura del sistema. Documentando en memoria.",
-                "SAVE_PROJECT", mapOf("type" to "sistema", "name" to extractName(input)))
+                "SAVE_SYSTEM", mapOf("type" to "sistema", "name" to extractName(input)))
 
             creates(text, "bot") -> resp(input, "CREATE_BOT",
                 "Iniciando arquitectura del bot. Registrando en agentes.",
@@ -42,11 +42,11 @@ object JupiterBrain {
 
             creates(text, "automatizacion", "automatización", "flujo") -> resp(input, "CREATE_SYSTEM",
                 "Diseñando flujo de automatización. Documentando componentes.",
-                "SAVE_PROJECT", mapOf("type" to "automatizacion", "name" to extractName(input)))
+                "SAVE_SYSTEM", mapOf("type" to "automatizacion", "name" to extractName(input)))
 
             creates(text, "empresa", "negocio", "startup") -> resp(input, "CREATE_SYSTEM",
                 "Estructurando modelo de negocio. Documentando en sistema.",
-                "SAVE_PROJECT", mapOf("type" to "empresa", "name" to extractName(input)))
+                "SAVE_SYSTEM", mapOf("type" to "empresa", "name" to extractName(input)))
 
             creates(text, "curso", "contenido", "módulo", "modulo") -> resp(input, "CREATE_SKILL",
                 "Estructurando contenido del curso. Registrando módulos.",
@@ -58,11 +58,11 @@ object JupiterBrain {
 
             creates(text, "marketing", "campaña", "campana", "anuncio", "ads") -> resp(input, "CREATE_SYSTEM",
                 "Diseñando estrategia de marketing. Documentando en sistema.",
-                "SAVE_PROJECT", mapOf("type" to "marketing", "name" to extractName(input)))
+                "SAVE_SYSTEM", mapOf("type" to "marketing", "name" to extractName(input)))
 
             creates(text, "trading", "inversión", "inversion") -> resp(input, "CREATE_SYSTEM",
                 "Estructurando sistema de trading. Registrando en finanzas.",
-                "SAVE_PROJECT", mapOf("type" to "trading", "name" to extractName(input)))
+                "SAVE_SYSTEM", mapOf("type" to "trading", "name" to extractName(input)))
 
             isSearch(text) -> resp(input, "WEB_SEARCH",
                 "Buscando información...",

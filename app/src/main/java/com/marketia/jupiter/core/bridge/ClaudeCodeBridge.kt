@@ -20,6 +20,8 @@ data class BridgeResult(
     val updateUrl: String? = null
 )
 
+enum class IssueStatus { PENDING, RUNNING, DONE, BLOCKED, UNKNOWN }
+
 @Singleton
 class ClaudeCodeBridge @Inject constructor(
     private val settingsRepository: SettingsRepository
@@ -40,9 +42,9 @@ class ClaudeCodeBridge @Inject constructor(
     private suspend fun sendViaGitHubIssue(task: ClaudeCodeTask): BridgeResult =
         withContext(Dispatchers.IO) {
             val settings = settingsRepository.getCurrentSettings()
-            if (settings.apiKey.isBlank()) {
+            if (settings.githubPat.isBlank()) {
                 return@withContext BridgeResult(false, BridgeChannel.GITHUB_ISSUE,
-                    "GitHub PAT no configurado. Configura en Config > API Key.")
+                    "GitHub PAT no configurado. Configura en Config > GitHub PAT.")
             }
 
             runCatching {
@@ -58,7 +60,7 @@ class ClaudeCodeBridge @Inject constructor(
                 val req = Request.Builder()
                     .url("https://api.github.com/repos/Robik33/Jupiter-app/issues")
                     .post(body.toString().toRequestBody(JSON_MT))
-                    .header("Authorization", "token ${settings.apiKey}")
+                    .header("Authorization", "token ${settings.githubPat}")
                     .header("Accept", "application/vnd.github.v3+json")
                     .build()
 
@@ -101,6 +103,36 @@ class ClaudeCodeBridge @Inject constructor(
     private suspend fun sendViaTelegram(task: ClaudeCodeTask): BridgeResult =
         BridgeResult(false, BridgeChannel.TELEGRAM,
             "Telegram bridge: configura BOT_TOKEN y CHAT_ID.")
+
+    suspend fun pollIssueStatus(issueUrl: String): IssueStatus = withContext(Dispatchers.IO) {
+        val settings = settingsRepository.getCurrentSettings()
+        if (settings.githubPat.isBlank()) return@withContext IssueStatus.UNKNOWN
+        val apiUrl = issueUrl
+            .replace("https://github.com/", "https://api.github.com/repos/")
+            .replace("/issues/", "/issues/")
+        runCatching {
+            val req = Request.Builder()
+                .url(apiUrl)
+                .get()
+                .header("Authorization", "token ${settings.githubPat}")
+                .header("Accept", "application/vnd.github.v3+json")
+                .build()
+            val resp = http.newCall(req).execute()
+            val json = JSONObject(resp.body?.string() ?: return@runCatching IssueStatus.UNKNOWN)
+            val state = json.optString("state", "open")
+            val labels = json.optJSONArray("labels")
+            val labelNames = (0 until (labels?.length() ?: 0)).map {
+                labels!!.getJSONObject(it).optString("name")
+            }
+            when {
+                "jupiter-done"    in labelNames -> IssueStatus.DONE
+                "jupiter-running" in labelNames -> IssueStatus.RUNNING
+                "jupiter-blocked" in labelNames -> IssueStatus.BLOCKED
+                state == "closed"               -> IssueStatus.DONE
+                else                            -> IssueStatus.PENDING
+            }
+        }.getOrDefault(IssueStatus.UNKNOWN)
+    }
 
     private fun buildIssueBody(task: ClaudeCodeTask): String {
         val filesSection = if (task.filesToChange.isNotEmpty())

@@ -34,6 +34,7 @@ class SettingsViewModel @Inject constructor(
     fun setApiKey(k: String)       = launch { settingsRepository.setApiKey(k) }
     fun setModel(m: String)        = launch { settingsRepository.setModel(m) }
     fun setOllamaUrl(u: String)    = launch { settingsRepository.setOllamaUrl(u) }
+    fun setGithubPat(k: String)    = launch { settingsRepository.setGithubPat(k) }
 
     fun setVoiceSpeed(s: Float) = launch {
         settingsRepository.setVoiceSpeed(s)

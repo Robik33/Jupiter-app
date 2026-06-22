@@ -5,10 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.core.VoiceEngine
 import com.marketia.jupiter.core.ai.JupiterRouter
+import com.marketia.jupiter.core.oracle.OracleHermesClient
+import com.marketia.jupiter.core.oracle.OracleState
 import com.marketia.jupiter.data.repository.JupiterRepository
 import com.marketia.jupiter.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,7 +31,8 @@ class NucleusViewModel @Inject constructor(
     private val voiceEngine: VoiceEngine,
     private val router: JupiterRouter,
     private val settingsRepository: SettingsRepository,
-    private val repository: JupiterRepository
+    private val repository: JupiterRepository,
+    private val oracleClient: OracleHermesClient
 ) : ViewModel() {
 
     private val _state        = MutableStateFlow<NucleusState>(NucleusState.Idle)
@@ -43,12 +47,22 @@ class NucleusViewModel @Inject constructor(
     private val _partialVoice = MutableStateFlow("")
     val partialVoice: StateFlow<String> = _partialVoice.asStateFlow()
 
+    private val _oracleState  = MutableStateFlow(OracleState())
+    val oracleState: StateFlow<OracleState> = _oracleState.asStateFlow()
+
     init {
         viewModelScope.launch {
             repository.seedIfEmpty()
             val s = settingsRepository.getCurrentSettings()
             voiceEngine.setSpeed(s.voiceSpeed)
             voiceEngine.setPitch(s.voicePitch)
+        }
+        // Poll ORACLE state every 30 seconds
+        viewModelScope.launch {
+            while (true) {
+                _oracleState.value = oracleClient.fetchOracleState()
+                delay(30_000L)
+            }
         }
     }
 

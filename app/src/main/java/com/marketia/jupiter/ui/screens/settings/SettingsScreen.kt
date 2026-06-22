@@ -35,10 +35,12 @@ import kotlin.math.roundToInt
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val settings     by viewModel.settings.collectAsState()
     val updateState  by viewModel.updateState.collectAsState()
-    var showApiKey   by remember { mutableStateOf(false) }
-    var apiKeyDraft  by remember(settings.apiKey)    { mutableStateOf(settings.apiKey) }
-    var modelDraft   by remember(settings.model)     { mutableStateOf(settings.model) }
-    var ollamaUrlDraft by remember(settings.ollamaUrl) { mutableStateOf(settings.ollamaUrl) }
+    var showApiKey     by remember { mutableStateOf(false) }
+    var showGithubPat  by remember { mutableStateOf(false) }
+    var apiKeyDraft    by remember(settings.apiKey)     { mutableStateOf(settings.apiKey) }
+    var modelDraft     by remember(settings.model)      { mutableStateOf(settings.model) }
+    var ollamaUrlDraft by remember(settings.ollamaUrl)  { mutableStateOf(settings.ollamaUrl) }
+    var githubPatDraft by remember(settings.githubPat)  { mutableStateOf(settings.githubPat) }
 
     Column(
         modifier = Modifier
@@ -133,6 +135,38 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 )
                 Spacer(Modifier.height(12.dp))
             }
+
+            // ── GITHUB PAT ────────────────────────────────────────────────────
+            HorizontalDivider(color = JupiterSurface, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+            SectionLabel("GITHUB PAT")
+            OutlinedTextField(
+                value = githubPatDraft,
+                onValueChange = { githubPatDraft = it; viewModel.setGithubPat(it) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("ghp_...", color = JupiterGray, fontSize = 13.sp) },
+                visualTransformation = if (showGithubPat) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    IconButton(onClick = { showGithubPat = !showGithubPat }) {
+                        Icon(
+                            if (showGithubPat) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Toggle",
+                            tint = JupiterGray
+                        )
+                    }
+                },
+                colors = jupiterFieldColors(),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Requerido para ClaudeCodeBridge (crear GitHub Issues). Scope: repo.",
+                color = JupiterGray.copy(alpha = 0.6f),
+                fontSize = 10.sp,
+                lineHeight = 13.sp
+            )
+            Spacer(Modifier.height(12.dp))
 
             HorizontalDivider(color = JupiterSurface, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
 
@@ -318,7 +352,7 @@ private fun UpdateSection(updateState: UpdateState, viewModel: SettingsViewModel
 
         Spacer(Modifier.height(6.dp))
         Text(
-            "Manifest: ${UpdateManager.MANIFEST_URL.removePrefix("https://raw.githubusercontent.com/")}",
+            "Manifest: ${UpdateManager.MANIFEST_URL.removePrefix("https://gist.githubusercontent.com/")}",
             color = JupiterGray.copy(alpha = 0.5f), fontSize = 8.sp, lineHeight = 11.sp
         )
     }

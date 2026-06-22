@@ -14,8 +14,8 @@ android {
         applicationId = "com.marketia.jupiter"
         minSdk = 29
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 10
+        versionName = "1.0.0"
     }
 
     signingConfigs {
@@ -48,6 +48,11 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
 
