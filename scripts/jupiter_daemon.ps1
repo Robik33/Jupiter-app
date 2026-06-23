@@ -12,6 +12,9 @@ param(
     [string]$ConfigFile = "$PSScriptRoot\jupiter_config.json"
 )
 
+# STARTUP TRACE — early diagnostic before config loads (hardcoded path)
+"$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') DAEMON START PID=$PID ConfigFile=$ConfigFile" | Add-Content "C:\Users\robik\market-ia\logs\daemon_startup_trace.log"
+
 Set-StrictMode -Off
 $ErrorActionPreference = "Continue"
 
@@ -118,29 +121,21 @@ function Invoke-ClaudeCode {
     param([string]$Prompt, [string]$WorkDir = $PROJECT_DIR)
     Write-Log "  Invocando Claude Code..."
 
-    $tmpIn  = Join-Path $env:TEMP "jd_prompt.txt"
-    $tmpOut = Join-Path $env:TEMP "jd_output.txt"
+    $tmpIn = Join-Path $env:TEMP "jd_prompt.txt"
     Set-Content -Path $tmpIn -Value $Prompt -Encoding UTF8
 
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName               = $CLAUDE
-    $psi.Arguments              = "--print --dangerously-skip-permissions"
-    $psi.WorkingDirectory       = $WorkDir
-    $psi.RedirectStandardInput  = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError  = $true
-    $psi.UseShellExecute        = $false
-    $psi.CreateNoWindow         = $true
-
-    $proc = [System.Diagnostics.Process]::Start($psi)
-    $proc.StandardInput.Write((Get-Content $tmpIn -Raw))
-    $proc.StandardInput.Close()
-
-    $stdout = $proc.StandardOutput.ReadToEnd()
-    $proc.WaitForExit(300000)
+    Push-Location $WorkDir
+    try {
+        # Pipe prompt file into claude via PowerShell — works in non-interactive Task Scheduler sessions
+        $claudeExe = $CLAUDE -replace '/', '\'
+        $output = Get-Content $tmpIn -Raw | & $claudeExe --print --dangerously-skip-permissions 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
     Remove-Item $tmpIn -Force -ErrorAction SilentlyContinue
-    Write-Log "  Claude Code completado (exit: $($proc.ExitCode))."
-    return $stdout
+    Write-Log "  Claude Code completado (exit: $exitCode)."
+    return ($output -join "`n")
 }
 
 # BUILD
@@ -182,10 +177,21 @@ function New-GhRelease {
     Write-Log "  Creando GitHub Release $Tag..."
     Push-Location $PROJECT_DIR
     try {
+        # Tag: delete local if exists to allow re-tag on same commit
+        & git tag -d $Tag 2>&1 | Out-Null
         & git tag $Tag 2>&1 | Out-Null
         & git push origin $Tag 2>&1 | Out-Null
-        $result = & $GH release create $Tag $ApkPath --title "JUPITER $Tag" --notes $Notes --repo $REPO 2>&1
-        Write-Log "  Release creado." "OK"
+
+        # Release: create or upload to existing
+        $existing = & $GH release view $Tag --repo $REPO 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            # Release already exists — upload APK to it
+            & $GH release upload $Tag $ApkPath --repo $REPO --clobber 2>&1 | Out-Null
+            Write-Log "  Release existente actualizado con nuevo APK." "OK"
+        } else {
+            & $GH release create $Tag $ApkPath --title "JUPITER $Tag" --notes $Notes --repo $REPO 2>&1 | Out-Null
+            Write-Log "  Release creado." "OK"
+        }
         return "https://github.com/$REPO/releases/tag/$Tag"
     } finally {
         Pop-Location
@@ -285,7 +291,8 @@ function Invoke-Task {
         Push-Changes -CommitMsg "feat: auto-build issue #${num} - $title"
 
         # 8. Comment + close
-        $ok = "JUPITER DAEMON - COMPLETADO`n`nRESULT: success`nAPK_URL: $apkUrl`nRELEASE_URL: $releaseUrl`nSHA256: $sha256`nVERSION: $vName (code $vCode)`n`nDaemon ${tag} - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        $claudeSummary = if ($claudeOutput) { $claudeOutput.Substring(0, [Math]::Min(500, $claudeOutput.Length)) } else { "(sin salida)" }
+        $ok = "JUPITER DAEMON - COMPLETADO`n`nRESULT: success`nAPK_URL: $apkUrl`nRELEASE_URL: $releaseUrl`nSHA256: $sha256`nVERSION: $vName (code $vCode)`n`nClaude Code: $claudeSummary`n`nDaemon ${tag} - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
         Add-IssueComment -IssueNum $num -CommentBody $ok
         Set-IssueLabels -IssueNum $num -Add @("jupiter-done") -Remove @("jupiter-running")
         Close-Issue -IssueNum $num
