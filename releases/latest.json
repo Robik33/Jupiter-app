@@ -1,22 +1,19 @@
 {
-  "versionCode": 12,
-  "versionName": "1.2.0",
-  "apkUrl": "https://files.catbox.moe/fx2c7c.apk",
-  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.2.0",
-  "sha256": "BFFC7D17FE5B4C96A725C6D00E79A9DDBB89BB9A02517BFAEA73BA781C9EC5F8",
-  "sizeBytes": 45800555,
+  "versionCode": 13,
+  "versionName": "1.3.0",
+  "apkUrl": "https://files.catbox.moe/i4vjaj.apk",
+  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.3.0",
+  "sha256": "DB0B6227F44C41950245967AC77966D37289BA391777ECE19C102D47CF84CD88",
+  "sizeBytes": 45854432,
   "mandatory": false,
   "changelog": [
-    "V1.2 OMEGA — conectar todo, cero placeholders",
-    "Hermes Decision Logger: cada decisión de IA logueada en Room DB (proveedor, tokens, duración)",
-    "Skills CRUD completo: crear, editar, duplicar, eliminar por UI (FAB + long-press)",
-    "WorkManager: autonomía ejecuta en background cada 15 min aunque app esté cerrada",
-    "TtsEngine interface: voz pluggable, VoiceEngine implementa la interfaz",
-    "GitHubSkill REAL: inspect/release/issue via GitHubRepoInspector + ClaudeCodeBridge",
-    "APKBuildSkill REAL: crea GitHub Issue con pasos de build para Claude Code PC",
-    "GitHub Actions CI/CD: build + release automático en push de tag v*",
-    "Room DB v7: HermesDecisionEntity añadida",
-    "SkillDao: @Update añadido para edición real",
-    "Signing CI: env vars con fallback a credenciales locales"
+    "V1.3.0 BRIDGE ABSOLUTE PRIORITY — puente autónomo completo",
+    "PromptInbox: historial de todos los prompts enviados al sistema",
+    "PromptBridgeService: pipeline Android → GitHub Issue → Daemon → Build → Release",
+    "jupiter_daemon.ps1: daemon PC que procesa issues 24/7 sin usuario como mensajero",
+    "install_jupiter_daemon_startup.ps1: registro en Windows Task Scheduler",
+    "Room DB v8: PromptInboxEntity (10 entities total)",
+    "AutonomyViewModel: promptInbox StateFlow + syncPromptInbox() + dispatchPrompt()",
+    "NucleusViewModel: cada processInput() registrado en PromptInbox con source voice/text"
   ]
 }
