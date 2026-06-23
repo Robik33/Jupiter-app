@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.core.VoiceEngine
 import com.marketia.jupiter.core.ai.JupiterRouter
+import com.marketia.jupiter.core.bridge.PromptBridgeService
+import com.marketia.jupiter.core.orchestrator.JupiterOrchestrator
+import com.marketia.jupiter.core.skills.SkillCreatorEngine
 import com.marketia.jupiter.core.oracle.OracleHermesClient
 import com.marketia.jupiter.core.oracle.OracleState
 import com.marketia.jupiter.data.entity.PromptInboxEntity
@@ -33,7 +36,10 @@ class NucleusViewModel @Inject constructor(
     private val router: JupiterRouter,
     private val settingsRepository: SettingsRepository,
     private val repository: JupiterRepository,
-    private val oracleClient: OracleHermesClient
+    private val oracleClient: OracleHermesClient,
+    private val promptBridgeService: PromptBridgeService,
+    private val orchestrator: JupiterOrchestrator,
+    private val skillCreator: SkillCreatorEngine
 ) : ViewModel() {
 
     private val _state        = MutableStateFlow<NucleusState>(NucleusState.Idle)
@@ -91,6 +97,27 @@ class NucleusViewModel @Inject constructor(
                 voiceEngine.setPitch(pit)
                 settingsRepository.setVoiceSpeed(spd)
                 settingsRepository.setVoicePitch(pit)
+            }
+
+            // CREATE_SKILL: create real SkillEntity (not just a ProjectEntity)
+            if (result.typeDetected == "CREATE_SKILL" || result.action == "CREATE_SKILL_ENTITY") {
+                runCatching {
+                    skillCreator.createFromText(
+                        name     = result.params["name"] ?: text.take(60),
+                        content  = text,
+                        category = result.params["type"] ?: "general",
+                        source   = inputSource
+                    )
+                }
+            }
+
+            // DISPATCH_BRIDGE: CODE_TASK, INGEST_LINK, GITHUB_ACTION → send to daemon via bridge
+            if (result.action == "DISPATCH_BRIDGE" ||
+                result.typeDetected in listOf("CODE_TASK", "INGEST_LINK")) {
+                runCatching {
+                    val queueId = promptBridgeService.createAndQueue(text, inputSource)
+                    promptBridgeService.dispatch(queueId)
+                }
             }
 
             _response.value = result

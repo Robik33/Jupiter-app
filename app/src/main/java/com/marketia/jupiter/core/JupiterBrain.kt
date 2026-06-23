@@ -16,79 +16,87 @@ object JupiterBrain {
     fun process(input: String): JupiterResponse {
         val text = input.lowercase().trim()
         return when {
+            // CODE_TASK before isVoice — "mejorar voz" = tarea de código vía bridge, no TTS local
+            isCodeTask(text) -> resp(input, "CODE_TASK",
+                "Tarea de mejora registrada. Enviando al bridge para implementación automática.",
+                "DISPATCH_BRIDGE", mapOf("task" to input))
+
+            // TTS local: solo ajustes explícitos de velocidad/tono
             isVoice(text) -> resp(input, "VOICE_CUSTOMIZATION",
-                "Ajustando mi voz para sonar más natural. Velocidad y tono optimizados.",
+                "Ajustando configuración TTS. Velocidad y tono actualizados.",
                 "APPLY_VOICE", mapOf("speed" to "0.82", "pitch" to "0.90"))
 
             creates(text, "app", "aplicación", "aplicacion") -> resp(input, "CREATE_APP",
-                "Iniciando proyecto de app. Registrando arquitectura en memoria.",
+                "App registrada. Creando estructura en memoria.",
                 "SAVE_PROJECT", mapOf("type" to "app", "name" to extractName(input)))
 
             creates(text, "skill") -> resp(input, "CREATE_SKILL",
-                "Creando nuevo skill. Define las capacidades que necesitas.",
-                "SAVE_PROJECT", mapOf("type" to "skill", "name" to extractName(input)))
+                "Creando skill: ${extractName(input)}. Guardando en base de datos.",
+                "CREATE_SKILL_ENTITY", mapOf("type" to "skill", "name" to extractName(input)))
 
             creates(text, "sistema") -> resp(input, "CREATE_SYSTEM",
-                "Diseñando arquitectura del sistema. Documentando en memoria.",
+                "Sistema registrado. Documentando arquitectura.",
                 "SAVE_SYSTEM", mapOf("type" to "sistema", "name" to extractName(input)))
 
             creates(text, "bot") -> resp(input, "CREATE_BOT",
-                "Iniciando arquitectura del bot. Registrando en agentes.",
+                "Bot registrado. Arquitectura guardada en agentes.",
                 "SAVE_PROJECT", mapOf("type" to "bot", "name" to extractName(input)))
 
             creates(text, "agente", "agent") -> resp(input, "CREATE_AGENT",
-                "Definiendo capacidades del agente IA. Registrando en sistema.",
+                "Agente IA definido. Registrando capacidades.",
                 "SAVE_PROJECT", mapOf("type" to "agente", "name" to extractName(input)))
 
             creates(text, "automatizacion", "automatización", "flujo") -> resp(input, "CREATE_SYSTEM",
-                "Diseñando flujo de automatización. Documentando componentes.",
+                "Flujo de automatización registrado.",
                 "SAVE_SYSTEM", mapOf("type" to "automatizacion", "name" to extractName(input)))
 
             creates(text, "empresa", "negocio", "startup") -> resp(input, "CREATE_SYSTEM",
-                "Estructurando modelo de negocio. Documentando en sistema.",
+                "Modelo de negocio registrado en sistema.",
                 "SAVE_SYSTEM", mapOf("type" to "empresa", "name" to extractName(input)))
 
             creates(text, "curso", "contenido", "módulo", "modulo") -> resp(input, "CREATE_SKILL",
-                "Estructurando contenido del curso. Registrando módulos.",
-                "SAVE_PROJECT", mapOf("type" to "curso", "name" to extractName(input)))
+                "Contenido del curso registrado como skill.",
+                "CREATE_SKILL_ENTITY", mapOf("type" to "curso", "name" to extractName(input)))
 
             creates(text, "sitio", "landing", "página", "pagina") -> resp(input, "CREATE_APP",
-                "Iniciando diseño del sitio web. Definiendo arquitectura frontend.",
+                "Sitio web registrado. Definiendo arquitectura frontend.",
                 "SAVE_PROJECT", mapOf("type" to "web", "name" to extractName(input)))
 
             creates(text, "marketing", "campaña", "campana", "anuncio", "ads") -> resp(input, "CREATE_SYSTEM",
-                "Diseñando estrategia de marketing. Documentando en sistema.",
+                "Estrategia de marketing registrada.",
                 "SAVE_SYSTEM", mapOf("type" to "marketing", "name" to extractName(input)))
 
             creates(text, "trading", "inversión", "inversion") -> resp(input, "CREATE_SYSTEM",
-                "Estructurando sistema de trading. Registrando en finanzas.",
+                "Sistema de trading registrado.",
                 "SAVE_SYSTEM", mapOf("type" to "trading", "name" to extractName(input)))
 
             isSearch(text) -> resp(input, "WEB_SEARCH",
-                "Buscando información...",
+                "Buscando: ${extractSearchQuery(text)}",
                 "SEARCH", mapOf("query" to extractSearchQuery(text)))
 
             isGitHub(text) -> resp(input, "GITHUB_ACTION",
-                "Acción GitHub registrada. Conecta ClaudeCodeBridge para ejecución real.",
-                "GITHUB", mapOf("action" to "inspect"))
+                "Acción GitHub encolada. ClaudeCodeBridge procesará la tarea.",
+                "DISPATCH_BRIDGE", mapOf("action" to "inspect"))
 
             isBuild(text) -> resp(input, "BUILD_APK",
-                "Build encolado. Requiere ClaudeCodeBridge activo en PC.",
+                "Build encolado. Daemon PC compilará el APK.",
                 "BUILD_APK", mapOf("target" to "release"))
 
-            text.contains("guardar") || text.contains("recordar") -> resp(input, "MEMORY_SAVE",
-                "Guardando en memoria...",
+            // INGEST_LINK: URL real detectada → bridge para análisis
+            text.contains("http") || text.contains("www.") -> resp(input, "INGEST_LINK",
+                "Enlace detectado. Analizando contenido vía bridge.",
+                "DISPATCH_BRIDGE", mapOf("url" to (extractUrl(text) ?: input), "content" to input))
+
+            text.contains("guardar") || text.contains("recordar") ||
+            text.contains("link") || text.contains("url") -> resp(input, "MEMORY_SAVE",
+                "Guardando en memoria.",
                 "MEMORY_SAVE", mapOf("content" to input))
 
-            text.contains("http") || text.contains("link") || text.contains("url") -> resp(input, "MEMORY_SAVE",
-                "Guardando enlace en memoria.",
-                "MEMORY_SAVE", mapOf("content" to input, "type" to "link"))
-
             isGreeting(text) -> resp(input, "GREETING",
-                "Listo para crear. ¿Qué necesitas construir hoy?")
+                "JÚPITER activo. Órdenes disponibles: crear skill/app/sistema, mejorar [algo], analizar enlace, buscar [tema].")
 
             else -> resp(input, "UNKNOWN",
-                "¿Quieres que lo convierta en un skill, ajuste de voz, proyecto o búsqueda web?",
+                "Sin coincidencia local. Di: 'crear skill [nombre]', 'mejorar [algo]', o pega un enlace. Activa IA en Ajustes para interpretación libre.",
                 "CLARIFY")
         }
     }
@@ -105,10 +113,22 @@ object JupiterBrain {
         params        = params
     )
 
+    private fun isCodeTask(text: String): Boolean {
+        val codeVerbs = listOf("mejorar","fix","corregir","optimizar","refactorizar","arreglar","actualizar")
+        // Exclude pure TTS commands (those are handled by isVoice)
+        val isTtsSetting = listOf("ajust","configur","velocidad","pitch","speed").any { text.contains(it) }
+        return codeVerbs.any { text.contains(it) } && !isTtsSetting
+    }
+
     private fun isVoice(text: String): Boolean {
         val voiceWords = listOf("voz","tts","hablas","suenas","sonar","speech")
-        val changeWords = listOf("humana","natural","ajust","cambi","crea","mejor","configur","otra","distinta")
-        return voiceWords.any { text.contains(it) } && changeWords.any { text.contains(it) }
+        // Only explicit TTS setting adjustments, not "mejorar" (that becomes CODE_TASK)
+        val settingWords = listOf("ajust","cambi","configur","velocidad","tono","pitch","speed","otra","distinta")
+        return voiceWords.any { text.contains(it) } && settingWords.any { text.contains(it) }
+    }
+
+    private fun extractUrl(text: String): String? {
+        return Regex("https?://[^\\s]+|www\\.[^\\s]+").find(text)?.value
     }
 
     private fun isSearch(text: String) =

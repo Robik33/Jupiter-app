@@ -1,22 +1,17 @@
-{
-  "versionCode": 13,
-  "versionName": "1.3.0",
-  "apkUrl": "https://files.catbox.moe/i4vjaj.apk",
-  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.3.0",
-  "sha256": "DB0B6227F44C41950245967AC77966D37289BA391777ECE19C102D47CF84CD88",
-  "sizeBytes": 45854432,
+﻿{
+  "versionCode": 14,
+  "versionName": "1.4.0",
+  "apkUrl": "https://files.catbox.moe/ry53sx.apk",
+  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.4.0",
+  "sha256": "ED1B24831DB67CD03532D41E4324D19B97E42D34CBAFB4B37EDBAC98196E48C7",
+  "sizeBytes": 45849707,
   "mandatory": false,
   "changelog": [
-    "V1.3.0 BRIDGE ABSOLUTE PRIORITY — puente autónomo completo",
-    "PromptInbox: historial de todos los prompts enviados al sistema",
-    "PromptBridgeService: pipeline Android → GitHub Issue → Daemon → Build → Release",
-    "jupiter_daemon.ps1: daemon PC que procesa issues 24/7 sin usuario como mensajero",
-    "install_jupiter_daemon_startup.ps1: registro en Windows Task Scheduler",
-    "Room DB v8: PromptInboxEntity (10 entities total)",
-    "AutonomyViewModel: promptInbox StateFlow + syncPromptInbox() + dispatchPrompt()",
-    "NucleusViewModel: cada processInput() registrado en PromptInbox con source voice/text"
-  ],
-  "bridgeTestUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.3.0-bridge-test",
-  "bridgeTestCommit": "23dc5ba632e64168280d7e60e5974d479eb29c93",
-  "bridgeValidated": true
+    "v1.4.0 CORE INTELLIGENCE FIX",
+    "FIX: isCodeTask - mejorar/fix/corregir ahora CODE_TASK via bridge",
+    "FIX: INGEST_LINK - URLs al bridge, no a MEMORY_SAVE",
+    "FIX: CREATE_SKILL crea SkillEntity real (no ProjectEntity)",
+    "FIX: DISPATCH_BRIDGE auto desde NucleusViewModel para CODE_TASK e INGEST_LINK",
+    "FIX: GREETING y UNKNOWN hardcoded responses eliminados"
+  ]
 }
