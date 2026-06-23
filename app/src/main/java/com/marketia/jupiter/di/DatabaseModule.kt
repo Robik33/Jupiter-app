@@ -30,4 +30,5 @@ object DatabaseModule {
     @Provides fun provideMemoryNodeDao(db: JupiterDatabase)     = db.memoryNodeDao()
     @Provides fun provideMemoryEdgeDao(db: JupiterDatabase)     = db.memoryEdgeDao()
     @Provides fun provideHermesDecisionDao(db: JupiterDatabase) = db.hermesDecisionDao()
+    @Provides fun providePromptInboxDao(db: JupiterDatabase)    = db.promptInboxDao()
 }

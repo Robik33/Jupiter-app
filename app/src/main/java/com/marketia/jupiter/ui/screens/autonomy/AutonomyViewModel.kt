@@ -12,11 +12,13 @@ import com.marketia.jupiter.core.autonomy.TaskScheduler
 import com.marketia.jupiter.core.bridge.ClaudeCodeBridge
 import com.marketia.jupiter.core.bridge.ClaudeCodeTask
 import com.marketia.jupiter.core.bridge.IssueStatus
+import com.marketia.jupiter.core.bridge.PromptBridgeService
 import com.marketia.jupiter.core.bridge.TaskPriority
 import com.marketia.jupiter.core.ingestion.IngestionResult
 import com.marketia.jupiter.core.ingestion.KnowledgeIngestionEngine
 import com.marketia.jupiter.core.orchestrator.JupiterOrchestrator
 import com.marketia.jupiter.core.orchestrator.OrchestratorResult
+import com.marketia.jupiter.data.entity.PromptInboxEntity
 import com.marketia.jupiter.data.entity.TaskEntity
 import com.marketia.jupiter.data.entity.HermesDecisionEntity
 import com.marketia.jupiter.data.repository.JupiterRepository
@@ -61,7 +63,8 @@ class AutonomyViewModel @Inject constructor(
     private val orchestrator: JupiterOrchestrator,
     private val ingestionEngine: KnowledgeIngestionEngine,
     private val bridge: ClaudeCodeBridge,
-    private val taskScheduler: TaskScheduler
+    private val taskScheduler: TaskScheduler,
+    private val promptBridgeService: PromptBridgeService
 ) : ViewModel() {
 
     val engineState: StateFlow<EngineState> = engine.engineState
@@ -91,6 +94,10 @@ class AutonomyViewModel @Inject constructor(
     val bridgeState: StateFlow<BridgeOpState> = _bridgeState.asStateFlow()
 
     val hermesDecisions = repository.hermesDecisions.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList()
+    )
+
+    val promptInbox = repository.promptInbox.stateIn(
         viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList()
     )
 
@@ -253,6 +260,25 @@ class AutonomyViewModel @Inject constructor(
 
     fun clearBridgeState() { _bridgeState.value = BridgeOpState.Idle }
     fun clearSyncState()   { _syncState.value = SyncState.Idle }
+
+    fun syncPromptInbox() {
+        viewModelScope.launch {
+            runCatching { promptBridgeService.syncAll() }
+        }
+    }
+
+    fun dispatchPrompt(promptText: String, source: String = "text") {
+        viewModelScope.launch {
+            runCatching {
+                val id = promptBridgeService.createAndQueue(promptText, source)
+                promptBridgeService.dispatch(id)
+            }
+        }
+    }
+
+    fun deletePromptEntry(entry: PromptInboxEntity) {
+        viewModelScope.launch { repository.deletePromptInbox(entry) }
+    }
 }
 
 sealed class BridgeOpState {

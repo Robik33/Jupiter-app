@@ -7,6 +7,7 @@ import com.marketia.jupiter.core.VoiceEngine
 import com.marketia.jupiter.core.ai.JupiterRouter
 import com.marketia.jupiter.core.oracle.OracleHermesClient
 import com.marketia.jupiter.core.oracle.OracleState
+import com.marketia.jupiter.data.entity.PromptInboxEntity
 import com.marketia.jupiter.data.repository.JupiterRepository
 import com.marketia.jupiter.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -68,11 +69,18 @@ class NucleusViewModel @Inject constructor(
 
     fun onTextChange(text: String) { _inputText.value = text }
 
-    fun processInput(text: String) {
+    fun processInput(text: String, inputSource: String = "text") {
         if (text.isBlank()) return
         _state.value = NucleusState.Processing
         _inputText.value = ""
         viewModelScope.launch {
+            // Track every prompt in the inbox (DRAFT = received, not dispatched to bridge yet)
+            runCatching {
+                repository.insertPromptInbox(
+                    PromptInboxEntity(source = inputSource, rawPrompt = text, status = "DRAFT")
+                )
+            }
+
             val result = router.route(text)
 
             // Handle APPLY_VOICE immediately in ViewModel
@@ -100,7 +108,7 @@ class NucleusViewModel @Inject constructor(
             _partialVoice.value = ""
             voiceEngine.startListening(
                 onPartialResult = { _partialVoice.value = it },
-                onFinalResult   = { _partialVoice.value = ""; processInput(it) },
+                onFinalResult   = { _partialVoice.value = ""; processInput(it, "voice") },
                 onError         = { _state.value = NucleusState.Idle; _partialVoice.value = "" }
             )
         }

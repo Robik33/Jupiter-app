@@ -1,0 +1,15 @@
+{
+  "github_pat": "YOUR_GITHUB_PAT_HERE",
+  "repo": "Robik33/Jupiter-app",
+  "gist_id": "8fdde845e278f54bf639adfccb3be295",
+  "project_dir": "C:\\Users\\robik\\market-ia\\apk\\jupiter-app",
+  "releases_dir": "C:\\Users\\robik\\market-ia\\apk\\releases",
+  "logs_dir": "C:\\Users\\robik\\market-ia\\logs",
+  "claude_path": "claude",
+  "gh_path": "C:\\Users\\robik\\AppData\\Local\\Programs\\gh-cli\\bin\\gh.exe",
+  "poll_interval_seconds": 60,
+  "keystore_path": "C:\\Users\\robik\\market-ia\\apk\\keys\\jupiter-release.jks",
+  "keystore_password": "jupiter2026!",
+  "key_alias": "jupiter",
+  "key_password": "jupiter2026!"
+}

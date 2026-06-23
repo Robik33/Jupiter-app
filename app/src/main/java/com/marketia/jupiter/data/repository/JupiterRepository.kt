@@ -2,6 +2,8 @@ package com.marketia.jupiter.data.repository
 
 import com.marketia.jupiter.data.db.dao.*
 import com.marketia.jupiter.data.entity.*
+import com.marketia.jupiter.data.db.dao.PromptInboxDao
+import com.marketia.jupiter.data.entity.PromptInboxEntity
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,7 +18,8 @@ class JupiterRepository @Inject constructor(
     val taskDao: TaskDao,
     val nodeDao: MemoryNodeDao,
     val edgeDao: MemoryEdgeDao,
-    val hermesDecisionDao: HermesDecisionDao
+    val hermesDecisionDao: HermesDecisionDao,
+    val promptInboxDao: PromptInboxDao
 ) {
     val skills:   Flow<List<SkillEntity>>          = skillDao.getAll()
     val links:    Flow<List<LinkEntity>>           = linkDao.getAll()
@@ -116,4 +119,15 @@ class JupiterRepository @Inject constructor(
         val cutoff = System.currentTimeMillis() - keepDays * 24 * 60 * 60 * 1000L
         hermesDecisionDao.deleteOlderThan(cutoff)
     }
+
+    // Prompt Inbox (Bridge pipeline)
+    val promptInbox: Flow<List<PromptInboxEntity>> = promptInboxDao.getAll()
+
+    suspend fun insertPromptInbox(entry: PromptInboxEntity): Long  = promptInboxDao.insert(entry)
+    suspend fun updatePromptInbox(entry: PromptInboxEntity)        = promptInboxDao.update(entry)
+    suspend fun deletePromptInbox(entry: PromptInboxEntity)        = promptInboxDao.delete(entry)
+    suspend fun getPromptInboxById(id: Long): PromptInboxEntity?   = promptInboxDao.getById(id)
+    suspend fun getActivePromptInbox(): List<PromptInboxEntity>    = promptInboxDao.getActive()
+    suspend fun countActivePrompts(): Int                          = promptInboxDao.countActive()
+    suspend fun purgeOldDonePrompts(before: Long)                  = promptInboxDao.purgeOldDone(before)
 }

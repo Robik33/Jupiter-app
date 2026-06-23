@@ -15,9 +15,10 @@ import com.marketia.jupiter.data.entity.*
         TaskEntity::class,
         MemoryNodeEntity::class,
         MemoryEdgeEntity::class,
-        HermesDecisionEntity::class
+        HermesDecisionEntity::class,
+        PromptInboxEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class JupiterDatabase : RoomDatabase() {
@@ -30,4 +31,5 @@ abstract class JupiterDatabase : RoomDatabase() {
     abstract fun memoryNodeDao(): MemoryNodeDao
     abstract fun memoryEdgeDao(): MemoryEdgeDao
     abstract fun hermesDecisionDao(): HermesDecisionDao
+    abstract fun promptInboxDao(): PromptInboxDao
 }
