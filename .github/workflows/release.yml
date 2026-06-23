@@ -1,0 +1,67 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > jupiter-release.jks
+
+      - name: Patch signing config for Linux path
+        run: |
+          sed -i 's|storeFile = file("C:\\\\Users\\\\robik\\\\market-ia\\\\apk\\\\keys\\\\jupiter-release.jks")|storeFile = file("${rootProject.projectDir}/jupiter-release.jks")|g' app/build.gradle.kts
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Get version name
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "APK_PATH=$APK_PATH" >> $GITHUB_OUTPUT
+          SHA256=$(sha256sum "$APK_PATH" | cut -d' ' -f1)
+          echo "SHA256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "JÚPITER ${{ steps.version.outputs.VERSION }}"
+          files: ${{ steps.version.outputs.APK_PATH }}
+          body: |
+            ## JÚPITER ${{ steps.version.outputs.VERSION }}
+
+            **SHA256**: `${{ steps.version.outputs.SHA256 }}`
+
+            ### Instalación
+            1. Descarga el APK adjunto
+            2. Habilita "Instalar fuentes desconocidas" en Android
+            3. Instala el APK
+
+            *Build automático generado por GitHub Actions*
+          generate_release_notes: true

@@ -11,6 +11,7 @@ interface SkillDao {
     fun search(q: String): Flow<List<SkillEntity>>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertAll(skills: List<SkillEntity>)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(skill: SkillEntity): Long
+    @Update suspend fun update(skill: SkillEntity)
     @Delete suspend fun delete(skill: SkillEntity)
     @Query("SELECT COUNT(*) FROM skills") suspend fun count(): Int
 }

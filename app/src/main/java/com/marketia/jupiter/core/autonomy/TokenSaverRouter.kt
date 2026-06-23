@@ -1,20 +1,20 @@
 package com.marketia.jupiter.core.autonomy
 
-import com.marketia.jupiter.core.ai.AIProvider
-import com.marketia.jupiter.core.ai.JupiterAIClient
 import com.marketia.jupiter.core.orchestrator.ClaudeOrchestrator
 import com.marketia.jupiter.core.orchestrator.DeepSeekOrchestrator
 import com.marketia.jupiter.core.orchestrator.OpenRouterOrchestrator
+import com.marketia.jupiter.data.db.dao.HermesDecisionDao
+import com.marketia.jupiter.data.entity.HermesDecisionEntity
 import com.marketia.jupiter.data.settings.SettingsRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 
 enum class TaskType {
-    CODE_GENERATION,    // Ollama first (free)
-    ANALYSIS,           // OpenRouter (cheap)
-    ARCHITECTURE_REVIEW,// Claude (critical)
-    INGESTION,          // Ollama → OpenRouter
-    GENERAL             // Ollama → OpenRouter → Claude
+    CODE_GENERATION,
+    ANALYSIS,
+    ARCHITECTURE_REVIEW,
+    INGESTION,
+    GENERAL
 }
 
 data class RouterResult(
@@ -27,48 +27,63 @@ data class RouterResult(
 @Singleton
 class TokenSaverRouter @Inject constructor(
     private val ollamaRouter: OllamaRouter,
-    private val jupiterAIClient: JupiterAIClient,
     private val openRouter: OpenRouterOrchestrator,
     private val claude: ClaudeOrchestrator,
     private val deepSeek: DeepSeekOrchestrator,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val hermesDecisionDao: HermesDecisionDao
 ) {
     private val SYSTEM_JUPITER = "Eres JUPITER. Sistema de construcción digital. Responde en español, preciso y orientado a sistemas."
 
-    suspend fun route(prompt: String, taskType: TaskType, ollamaUrl: String = "http://localhost:11434"): RouterResult {
-        val settings = settingsRepository.getCurrentSettings()
+    suspend fun route(
+        prompt: String,
+        taskType: TaskType,
+        ollamaUrl: String = "http://localhost:11434"
+    ): RouterResult {
+        val settings  = settingsRepository.getCurrentSettings()
+        val startTime = System.currentTimeMillis()
 
-        return when (taskType) {
-            TaskType.CODE_GENERATION -> {
-                // Ollama first (free), then DeepSeek, then OpenRouter
+        val result = when (taskType) {
+            TaskType.CODE_GENERATION ->
                 tryOllama(prompt, ollamaUrl)
                     ?: tryDeepSeek(prompt, settings.deepseekKey)
                     ?: tryOpenRouter(prompt, settings.openrouterKey.ifBlank { settings.apiKey })
                     ?: RouterResult(null, "NONE", false)
-            }
 
-            TaskType.ANALYSIS, TaskType.INGESTION -> {
-                // OpenRouter first (cheap), fall back to Ollama
+            TaskType.ANALYSIS, TaskType.INGESTION ->
                 tryOpenRouter(prompt, settings.openrouterKey.ifBlank { settings.apiKey })
                     ?: tryOllama(prompt, ollamaUrl)
                     ?: RouterResult(null, "NONE", false)
-            }
 
-            TaskType.ARCHITECTURE_REVIEW -> {
-                // Claude first (best quality), fall back to OpenRouter
+            TaskType.ARCHITECTURE_REVIEW ->
                 tryClaude(prompt, settings.claudeKey.ifBlank { settings.apiKey })
                     ?: tryOpenRouter(prompt, settings.openrouterKey.ifBlank { settings.apiKey })
                     ?: RouterResult(null, "NONE", false)
-            }
 
-            TaskType.GENERAL -> {
-                // Ollama → OpenRouter → Claude cascade
+            TaskType.GENERAL ->
                 tryOllama(prompt, ollamaUrl)
                     ?: tryOpenRouter(prompt, settings.openrouterKey.ifBlank { settings.apiKey })
                     ?: tryClaude(prompt, settings.claudeKey.ifBlank { settings.apiKey })
                     ?: RouterResult(null, "NONE", false)
-            }
         }
+
+        // Log decision to DB (non-blocking, errors silently swallowed)
+        runCatching {
+            hermesDecisionDao.insert(
+                HermesDecisionEntity(
+                    taskType        = taskType.name,
+                    providerChosen  = result.providerUsed,
+                    promptPreview   = prompt.take(300),
+                    responsePreview = result.content?.take(200) ?: "",
+                    tokensEstimate  = result.tokensEstimate,
+                    durationMs      = System.currentTimeMillis() - startTime,
+                    success         = result.content != null,
+                    isFree          = result.isFree
+                )
+            )
+        }
+
+        return result
     }
 
     private suspend fun tryOllama(prompt: String, url: String): RouterResult? {

@@ -14,16 +14,18 @@ android {
         applicationId = "com.marketia.jupiter"
         minSdk = 29
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.1.0"
+        versionCode = 12
+        versionName = "1.2.0"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("C:\\Users\\robik\\market-ia\\apk\\keys\\jupiter-release.jks")
-            storePassword = "jupiter2026!"
-            keyAlias = "jupiter"
-            keyPassword = "jupiter2026!"
+            val localStore = file("C:\\Users\\robik\\market-ia\\apk\\keys\\jupiter-release.jks")
+            val ciStore    = rootProject.file("jupiter-release.jks")
+            storeFile      = if (localStore.exists()) localStore else ciStore
+            storePassword  = System.getenv("KEY_STORE_PASSWORD") ?: "jupiter2026!"
+            keyAlias       = System.getenv("KEY_ALIAS")          ?: "jupiter"
+            keyPassword    = System.getenv("KEY_PASSWORD")       ?: "jupiter2026!"
         }
     }
 
@@ -84,6 +86,11 @@ dependencies {
     // DataStore + OkHttp
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.okhttp)
+
+    // WorkManager + Hilt integration
+    implementation(libs.workmanager.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

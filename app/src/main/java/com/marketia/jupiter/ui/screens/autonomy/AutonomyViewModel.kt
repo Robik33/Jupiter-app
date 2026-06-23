@@ -8,6 +8,7 @@ import com.marketia.jupiter.core.autonomy.OllamaRouter
 import com.marketia.jupiter.core.autonomy.OllamaStatus
 import com.marketia.jupiter.BuildConfig
 import com.marketia.jupiter.core.bridge.BridgeChannel
+import com.marketia.jupiter.core.autonomy.TaskScheduler
 import com.marketia.jupiter.core.bridge.ClaudeCodeBridge
 import com.marketia.jupiter.core.bridge.ClaudeCodeTask
 import com.marketia.jupiter.core.bridge.IssueStatus
@@ -17,6 +18,7 @@ import com.marketia.jupiter.core.ingestion.KnowledgeIngestionEngine
 import com.marketia.jupiter.core.orchestrator.JupiterOrchestrator
 import com.marketia.jupiter.core.orchestrator.OrchestratorResult
 import com.marketia.jupiter.data.entity.TaskEntity
+import com.marketia.jupiter.data.entity.HermesDecisionEntity
 import com.marketia.jupiter.data.repository.JupiterRepository
 import com.marketia.jupiter.data.settings.AppSettings
 import com.marketia.jupiter.data.settings.SettingsRepository
@@ -58,7 +60,8 @@ class AutonomyViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val orchestrator: JupiterOrchestrator,
     private val ingestionEngine: KnowledgeIngestionEngine,
-    private val bridge: ClaudeCodeBridge
+    private val bridge: ClaudeCodeBridge,
+    private val taskScheduler: TaskScheduler
 ) : ViewModel() {
 
     val engineState: StateFlow<EngineState> = engine.engineState
@@ -87,11 +90,17 @@ class AutonomyViewModel @Inject constructor(
     private val _bridgeState = MutableStateFlow<BridgeOpState>(BridgeOpState.Idle)
     val bridgeState: StateFlow<BridgeOpState> = _bridgeState.asStateFlow()
 
+    val hermesDecisions = repository.hermesDecisions.stateIn(
+        viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList()
+    )
+
     init {
         viewModelScope.launch {
             settingsRepository.settings.collect { _settings.value = it }
         }
         refreshOllama()
+        // Schedule background autonomy execution via WorkManager
+        taskScheduler.schedulePeriodicExecution()
         // Auto-sync remote tasks on startup (REGLA 5)
         viewModelScope.launch {
             delay(2000) // let DB settle

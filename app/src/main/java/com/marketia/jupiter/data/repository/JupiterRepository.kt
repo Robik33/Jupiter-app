@@ -15,15 +15,17 @@ class JupiterRepository @Inject constructor(
     val agentDao: AgentDao,
     val taskDao: TaskDao,
     val nodeDao: MemoryNodeDao,
-    val edgeDao: MemoryEdgeDao
+    val edgeDao: MemoryEdgeDao,
+    val hermesDecisionDao: HermesDecisionDao
 ) {
-    val skills:   Flow<List<SkillEntity>>      = skillDao.getAll()
-    val links:    Flow<List<LinkEntity>>       = linkDao.getAll()
-    val projects: Flow<List<ProjectEntity>>    = projectDao.getAll()
-    val systems:  Flow<List<SystemEntity>>     = systemDao.getAll()
-    val agents:   Flow<List<AgentEntity>>      = agentDao.getAll()
-    val nodes:    Flow<List<MemoryNodeEntity>> = nodeDao.getAll()
-    val edges:    Flow<List<MemoryEdgeEntity>> = edgeDao.getAll()
+    val skills:   Flow<List<SkillEntity>>          = skillDao.getAll()
+    val links:    Flow<List<LinkEntity>>           = linkDao.getAll()
+    val projects: Flow<List<ProjectEntity>>        = projectDao.getAll()
+    val systems:  Flow<List<SystemEntity>>         = systemDao.getAll()
+    val agents:   Flow<List<AgentEntity>>          = agentDao.getAll()
+    val nodes:    Flow<List<MemoryNodeEntity>>     = nodeDao.getAll()
+    val edges:    Flow<List<MemoryEdgeEntity>>     = edgeDao.getAll()
+    val hermesDecisions: Flow<List<HermesDecisionEntity>> = hermesDecisionDao.getAll()
 
     fun searchSkills(q: String):   Flow<List<SkillEntity>>   = skillDao.search(q)
     fun searchLinks(q: String):    Flow<List<LinkEntity>>    = linkDao.search(q)
@@ -65,6 +67,7 @@ class JupiterRepository @Inject constructor(
     suspend fun updateLink(link: LinkEntity)          = linkDao.update(link)
     suspend fun deleteLink(link: LinkEntity)          = linkDao.delete(link)
     suspend fun saveSkill(skill: SkillEntity): Long   = skillDao.insert(skill)
+    suspend fun updateSkill(skill: SkillEntity)       = skillDao.update(skill)
     suspend fun deleteSkill(skill: SkillEntity)       = skillDao.delete(skill)
 
     suspend fun addProject(name: String, type: String, description: String) {
@@ -90,13 +93,13 @@ class JupiterRepository @Inject constructor(
     suspend fun submitTask(title: String, description: String, priority: String = "MEDIUM"): Long =
         taskDao.insert(TaskEntity(title = title, description = description, priority = priority))
 
-    suspend fun updateTask(task: TaskEntity)           = taskDao.update(task)
-    suspend fun getNextPendingTask(): TaskEntity?      = taskDao.getNextPending()
-    suspend fun countDoneTasks(): Int                  = taskDao.countDone()
-    suspend fun countPendingTasks(): Int               = taskDao.countPending()
-    suspend fun clearDoneTasks()                       = taskDao.clearDone()
-    suspend fun deleteTask(task: TaskEntity)           = taskDao.delete(task)
-    suspend fun getTasksWithIssueUrl(): List<TaskEntity> = taskDao.getWithIssueUrl()
+    suspend fun updateTask(task: TaskEntity)              = taskDao.update(task)
+    suspend fun getNextPendingTask(): TaskEntity?         = taskDao.getNextPending()
+    suspend fun countDoneTasks(): Int                     = taskDao.countDone()
+    suspend fun countPendingTasks(): Int                  = taskDao.countPending()
+    suspend fun clearDoneTasks()                          = taskDao.clearDone()
+    suspend fun deleteTask(task: TaskEntity)              = taskDao.delete(task)
+    suspend fun getTasksWithIssueUrl(): List<TaskEntity>  = taskDao.getWithIssueUrl()
 
     suspend fun submitTaskWithIssue(title: String, description: String, priority: String = "MEDIUM", issueUrl: String): Long {
         return taskDao.insert(TaskEntity(
@@ -104,5 +107,13 @@ class JupiterRepository @Inject constructor(
             priority = priority, issueUrl = issueUrl,
             remoteStatus = "PENDING"
         ))
+    }
+
+    // Hermes decision log
+    suspend fun logHermesDecision(decision: HermesDecisionEntity) = hermesDecisionDao.insert(decision)
+    suspend fun getRecentDecisions(): List<HermesDecisionEntity>  = hermesDecisionDao.getRecent()
+    suspend fun purgeOldDecisions(keepDays: Int = 7) {
+        val cutoff = System.currentTimeMillis() - keepDays * 24 * 60 * 60 * 1000L
+        hermesDecisionDao.deleteOlderThan(cutoff)
     }
 }

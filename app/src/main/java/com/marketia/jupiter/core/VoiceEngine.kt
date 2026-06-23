@@ -7,6 +7,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import com.marketia.jupiter.core.tts.TtsEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
 import javax.inject.Inject
@@ -15,15 +16,17 @@ import javax.inject.Singleton
 @Singleton
 class VoiceEngine @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : TtsEngine {
+
     private var recognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
-    var speed: Float = 1.0f
+    override var speed: Float = 1.0f
         private set
-    var pitch: Float = 1.0f
+    override var pitch: Float = 1.0f
         private set
+    override val isReady: Boolean get() = ttsReady
 
     init {
         tts = TextToSpeech(context) { status ->
@@ -40,12 +43,12 @@ class VoiceEngine @Inject constructor(
 
     fun isAvailable(): Boolean = SpeechRecognizer.isRecognitionAvailable(context)
 
-    fun setSpeed(newSpeed: Float) {
+    override fun setSpeed(newSpeed: Float) {
         speed = newSpeed.coerceIn(0.5f, 2.0f)
         tts?.setSpeechRate(speed)
     }
 
-    fun setPitch(newPitch: Float) {
+    override fun setPitch(newPitch: Float) {
         pitch = newPitch.coerceIn(0.5f, 2.0f)
         tts?.setPitch(pitch)
     }
@@ -89,13 +92,16 @@ class VoiceEngine @Inject constructor(
 
     fun stopListening() { recognizer?.stopListening() }
 
-    fun speak(text: String) {
+    override fun speak(text: String) {
         if (ttsReady) {
             tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jupiter_${System.currentTimeMillis()}")
         }
     }
 
-    fun stopSpeaking() { tts?.stop() }
+    override fun stop() { tts?.stop() }
+
+    // Keep legacy name for existing callers
+    fun stopSpeaking() = stop()
 
     fun destroy() {
         recognizer?.destroy(); recognizer = null

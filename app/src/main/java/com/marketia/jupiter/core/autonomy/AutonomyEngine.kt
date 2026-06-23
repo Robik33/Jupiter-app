@@ -186,4 +186,18 @@ Intenta de nuevo con un enfoque diferente. Responde en español, sé preciso.
     }
 
     private fun estimateTokenSavings(text: String): Int = (text.length / 4).coerceIn(10, 2000)
+
+    // Used by AutonomyWorker: processes all pending tasks once, then returns
+    suspend fun processAllPending(): Int {
+        if (_engineState.value is EngineState.Running || _engineState.value is EngineState.Processing) return 0
+        var processed = 0
+        while (true) {
+            val task = repository.getNextPendingTask() ?: break
+            _engineState.value = EngineState.Processing(task.title, "WORKER")
+            runCatching { processTask(task) }
+            processed++
+        }
+        _engineState.value = EngineState.Idle
+        return processed
+    }
 }
