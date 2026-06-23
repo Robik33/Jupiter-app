@@ -1,20 +1,22 @@
 {
-  "versionCode": 11,
-  "versionName": "1.1.0",
-  "apkUrl": "https://files.catbox.moe/yg27az.apk",
-  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.1.0",
-  "sha256": "5A43F23064DC096DEA6FE6AF2890AE8F8929D3144D906A4BA78A1555AF536B42",
-  "sizeBytes": 45257768,
+  "versionCode": 12,
+  "versionName": "1.2.0",
+  "apkUrl": "https://files.catbox.moe/fx2c7c.apk",
+  "releaseUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.2.0",
+  "sha256": "BFFC7D17FE5B4C96A725C6D00E79A9DDBB89BB9A02517BFAEA73BA781C9EC5F8",
+  "sizeBytes": 45800555,
   "mandatory": false,
   "changelog": [
-    "V1.1 Bridge First Architecture — REGLAs 1-8 implementadas",
-    "TaskEntity: 6 campos remote (issueUrl, remoteStatus, remoteResult, remoteApkUrl, remoteReleaseUrl, lastRemoteCheckAt)",
-    "ClaudeCodeBridge.pollFull(): extrae labels + comentarios (APK_URL, RELEASE_URL, RESULT, BLOCKED)",
-    "Auto-sync al abrir la app — sincronía remota en background (REGLA 5)",
-    "AutonomyScreen: badge remoteStatus, boton INSTALAR APK, boton ABRIR RELEASE",
-    "AutonomyScreen: boton SINCRONIZAR con spinner + contador de actualizaciones",
-    "PromptQueue: CODE_TASK + HIGH/CRITICAL auto-envian a Claude Code (REGLA 7)",
-    "Room DB v6 — fallbackToDestructiveMigration aplicado",
-    "BridgeOpState: feedback visual de envio en tiempo real"
+    "V1.2 OMEGA — conectar todo, cero placeholders",
+    "Hermes Decision Logger: cada decisión de IA logueada en Room DB (proveedor, tokens, duración)",
+    "Skills CRUD completo: crear, editar, duplicar, eliminar por UI (FAB + long-press)",
+    "WorkManager: autonomía ejecuta en background cada 15 min aunque app esté cerrada",
+    "TtsEngine interface: voz pluggable, VoiceEngine implementa la interfaz",
+    "GitHubSkill REAL: inspect/release/issue via GitHubRepoInspector + ClaudeCodeBridge",
+    "APKBuildSkill REAL: crea GitHub Issue con pasos de build para Claude Code PC",
+    "GitHub Actions CI/CD: build + release automático en push de tag v*",
+    "Room DB v7: HermesDecisionEntity añadida",
+    "SkillDao: @Update añadido para edición real",
+    "Signing CI: env vars con fallback a credenciales locales"
   ]
 }
