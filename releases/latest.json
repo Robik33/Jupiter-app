@@ -15,5 +15,8 @@
     "Room DB v8: PromptInboxEntity (10 entities total)",
     "AutonomyViewModel: promptInbox StateFlow + syncPromptInbox() + dispatchPrompt()",
     "NucleusViewModel: cada processInput() registrado en PromptInbox con source voice/text"
-  ]
+  ],
+  "bridgeTestUrl": "https://github.com/Robik33/Jupiter-app/releases/tag/v1.3.0-bridge-test",
+  "bridgeTestCommit": "23dc5ba632e64168280d7e60e5974d479eb29c93",
+  "bridgeValidated": true
 }

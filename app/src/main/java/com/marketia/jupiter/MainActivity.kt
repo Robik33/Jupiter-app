@@ -1,3 +1,4 @@
+// JUPITER v1.3.0 - Bridge Autonomous
 package com.marketia.jupiter
 
 import android.os.Bundle
