@@ -220,9 +220,10 @@ function Push-Changes {
     param([string]$CommitMsg)
     Push-Location $PROJECT_DIR
     try {
+        # Only stage tracked files — never git add -A (would include hprof/crash dumps)
+        & git add -u 2>&1 | Out-Null
         $status = & git status --short 2>&1
         if ($status) {
-            & git add -A 2>&1 | Out-Null
             & git commit -m $CommitMsg 2>&1 | Out-Null
             & git push origin main 2>&1 | Out-Null
             Write-Log "  Push: $CommitMsg" "OK"
