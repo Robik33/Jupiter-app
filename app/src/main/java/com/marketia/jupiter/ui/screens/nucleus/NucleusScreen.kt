@@ -5,7 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -13,12 +13,10 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
@@ -26,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +45,7 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
     val response     by viewModel.response.collectAsState()
     val partialVoice by viewModel.partialVoice.collectAsState()
     val oracleState  by viewModel.oracleState.collectAsState()
-    val context = LocalContext.current
+    val context      = LocalContext.current
 
     val micLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -72,110 +71,110 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.weight(0.08f))
-
-            // ORACLE state bar
-            OracleStateWidget(
-                state = oracleState,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            // NÚCLEO title
-            Text(
-                text = "JÚPITER",
-                color = JupiterCyan,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 6.sp
-            )
-            Text(
-                text = "NÚCLEO DE CREACIÓN",
-                color = JupiterGray,
-                fontSize = 9.sp,
-                letterSpacing = 3.sp
-            )
-
             Spacer(Modifier.weight(0.06f))
 
-            // Animated nucleus sphere — clickable to toggle listening
+            OracleStateWidget(
+                state    = oracleState,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
+            // Identity mark — minimal
+            Text(
+                text = "J Ú P I T E R",
+                color = JupiterCyan.copy(alpha = 0.7f),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Light,
+                letterSpacing = 8.sp
+            )
+
+            Spacer(Modifier.weight(0.04f))
+
+            // Main nucleus sphere
             JupiterNucleus(
                 state = state,
                 modifier = Modifier
-                    .size(230.dp)
+                    .size(220.dp)
                     .clickable { onMicTap() }
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // State indicator
-            Text(
-                text = when (state) {
-                    NucleusState.Idle       -> "Toca el núcleo para hablar"
-                    NucleusState.Listening  -> "● ESCUCHANDO"
-                    NucleusState.Processing -> "◈ PROCESANDO"
-                    is NucleusState.Responding -> "◉ RESPONDIENDO"
-                },
-                color = when (state) {
-                    NucleusState.Listening  -> JupiterGreen
-                    NucleusState.Processing -> JupiterPurple
-                    is NucleusState.Responding -> JupiterCyan
-                    else -> JupiterGray
-                },
-                fontSize = 11.sp,
-                letterSpacing = 2.sp,
-                fontWeight = if (state != NucleusState.Idle) FontWeight.Bold else FontWeight.Normal
-            )
+            // State label — natural language, lowercase
+            val stateText = when (state) {
+                NucleusState.Idle          -> ""
+                NucleusState.Listening     -> "escuchando..."
+                NucleusState.Processing    -> "pensando..."
+                is NucleusState.Responding -> ""
+            }
 
-            // Partial voice text
+            AnimatedVisibility(visible = stateText.isNotEmpty()) {
+                Text(
+                    text      = stateText,
+                    color     = when (state) {
+                        NucleusState.Listening  -> JupiterGreen
+                        NucleusState.Processing -> JupiterCyan
+                        else                    -> JupiterGray
+                    },
+                    fontSize  = 13.sp,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            // Partial voice transcription
             AnimatedVisibility(visible = partialVoice.isNotEmpty()) {
                 Text(
-                    text = "\"$partialVoice\"",
-                    color = JupiterGray,
-                    fontSize = 13.sp,
+                    text      = partialVoice,
+                    color     = JupiterGray,
+                    fontSize  = 14.sp,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp)
+                    modifier  = Modifier.padding(top = 6.dp, start = 16.dp, end = 16.dp)
                 )
             }
 
             Spacer(Modifier.weight(1f))
 
-            // Response card
+            // Response card — premium redesign
             AnimatedVisibility(
                 visible = response != null,
-                enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it / 2 },
-                exit  = fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 2 }
+                enter   = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 3 },
+                exit    = fadeOut(tween(250)) + slideOutVertically(tween(250)) { it / 3 }
             ) {
-                response?.let { ResponseCard(it) { viewModel.clearResponse() } }
+                response?.let { JarvisResponseCard(it) { viewModel.clearResponse() } }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Prompt hint
+            // Idle hint
             AnimatedVisibility(visible = response == null && state == NucleusState.Idle) {
                 Text(
-                    text = "¿Qué necesitas crear?",
-                    color = JupiterGray.copy(alpha = 0.5f),
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center
+                    text      = "Habla conmigo",
+                    color     = JupiterGray.copy(alpha = 0.35f),
+                    fontSize  = 12.sp,
+                    textAlign = TextAlign.Center,
+                    letterSpacing = 1.sp
                 )
             }
 
             Spacer(Modifier.height(12.dp))
 
-            // Text input row
+            // Input row — refined
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(JupiterSurface),
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(JupiterDark),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextField(
-                    value = inputText,
+                    value         = inputText,
                     onValueChange = viewModel::onTextChange,
-                    modifier = Modifier.weight(1f),
-                    placeholder = {
-                        Text("Orden escrita...", color = JupiterGray, fontSize = 13.sp)
+                    modifier      = Modifier.weight(1f),
+                    placeholder   = {
+                        Text(
+                            "Escribe aquí...",
+                            color    = JupiterGray.copy(alpha = 0.5f),
+                            fontSize = 14.sp
+                        )
                     },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor   = Color.Transparent,
@@ -189,24 +188,22 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
                     singleLine = true
                 )
 
-                // Mic button
                 IconButton(onClick = { onMicTap() }) {
                     Icon(
                         imageVector = Icons.Default.Mic,
-                        contentDescription = "Voz",
+                        contentDescription = null,
                         tint = if (state == NucleusState.Listening) JupiterGreen else JupiterCyan
                     )
                 }
 
-                // Send button
                 IconButton(
-                    onClick = { viewModel.processInput(inputText) },
-                    enabled = inputText.isNotBlank()
+                    onClick  = { viewModel.processInput(inputText) },
+                    enabled  = inputText.isNotBlank()
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
-                        contentDescription = "Enviar",
-                        tint = if (inputText.isNotBlank()) JupiterCyan else JupiterGray
+                        contentDescription = null,
+                        tint = if (inputText.isNotBlank()) JupiterCyan else JupiterGray.copy(alpha = 0.3f)
                     )
                 }
             }
@@ -217,61 +214,115 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun ResponseCard(response: JupiterResponse, onDismiss: () -> Unit) {
+private fun JarvisResponseCard(response: JupiterResponse, onDismiss: () -> Unit) {
+    // Determine accent by intent
+    val accent = when {
+        response.typeDetected.contains("CODE") || response.typeDetected.contains("BUILD") -> Color(0xFF7C4DFF)
+        response.typeDetected.contains("SKILL") || response.typeDetected.contains("CREATE") -> JupiterGreen
+        response.typeDetected.contains("INGEST") || response.typeDetected.contains("LINK") -> Color(0xFF00E5FF)
+        response.typeDetected.contains("SEARCH") -> Color(0xFFFFD700)
+        response.typeDetected.contains("GREETING") -> JupiterCyan
+        response.typeDetected.contains("VOICE") -> Color(0xFFFF8800)
+        response.typeDetected == "UNKNOWN" -> JupiterGray
+        else -> JupiterCyan
+    }
+
+    val statusSymbol = when (response.status) {
+        "EJECUTANDO"  -> "◉"
+        "COMPLETADO"  -> "◈"
+        "ESPERANDO"   -> "○"
+        else          -> "◉"
+    }
+
+    val statusLabel = when (response.status) {
+        "EJECUTANDO"  -> "en proceso"
+        "COMPLETADO"  -> "completado"
+        "ESPERANDO"   -> "en espera"
+        else          -> response.status.lowercase()
+    }
+
     Card(
         colors = CardDefaults.cardColors(containerColor = JupiterSurface),
-        shape = RoundedCornerShape(16.dp),
+        shape  = RoundedCornerShape(20.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
+
+            // Top row: intent badge + dismiss
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    ResponseRow(label = "ORDEN",    value = "\"${response.orderReceived}\"", JupiterGray)
-                    Spacer(Modifier.height(8.dp))
-                    ResponseRow(label = "TIPO",     value = response.typeDetected, JupiterCyan)
-                    Spacer(Modifier.height(8.dp))
-                    ResponseRow(label = "ACCIÓN",   value = response.nextAction, JupiterWhite)
-                    Spacer(Modifier.height(10.dp))
+                // Intent chip
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(accent.copy(alpha = 0.12f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text          = response.typeDetected.replace("_", " "),
+                        color         = accent,
+                        fontSize      = 9.sp,
+                        fontWeight    = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Clear, contentDescription = "Cerrar", tint = JupiterGray)
+
+                IconButton(
+                    onClick   = onDismiss,
+                    modifier  = Modifier.size(20.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        tint     = JupiterGray.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
             }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Accent divider
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(JupiterBlack)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(JupiterGreen)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = response.status,
-                        color = JupiterGreen,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                }
+                    .width(32.dp)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(1.dp))
+                    .background(accent.copy(alpha = 0.4f))
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            // Response text — main element
+            Text(
+                text       = response.nextAction,
+                color      = JupiterWhite,
+                fontSize   = 15.sp,
+                lineHeight = 22.sp,
+                fontWeight = FontWeight.Normal
+            )
+
+            Spacer(Modifier.height(18.dp))
+
+            // Status — minimal
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(accent)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text          = statusLabel,
+                    color         = accent.copy(alpha = 0.7f),
+                    fontSize      = 10.sp,
+                    letterSpacing = 0.5.sp
+                )
             }
         }
     }
-}
-
-@Composable
-private fun ResponseRow(label: String, value: String, valueColor: Color) {
-    Text(label, color = JupiterGray, fontSize = 9.sp, letterSpacing = 2.sp)
-    Spacer(Modifier.height(2.dp))
-    Text(value, color = valueColor, fontSize = 13.sp, lineHeight = 18.sp)
 }

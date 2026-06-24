@@ -22,18 +22,25 @@ class VoiceEngine @Inject constructor(
     private var tts: TextToSpeech? = null
     private var ttsReady = false
 
-    override var speed: Float = 1.0f
+    // Natural default voice: slightly slower and lower than TTS default
+    override var speed: Float = 0.87f
         private set
-    override var pitch: Float = 1.0f
+    override var pitch: Float = 0.93f
         private set
     override val isReady: Boolean get() = ttsReady
 
     init {
         tts = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val result = tts?.setLanguage(Locale("es", "ES"))
-                ttsReady = result != TextToSpeech.LANG_MISSING_DATA &&
-                           result != TextToSpeech.LANG_NOT_SUPPORTED
+                // Try es-US first (often richer voice on modern Android), then es-ES, then device default
+                val locales = listOf(Locale("es", "US"), Locale("es", "ES"), Locale("es", "MX"))
+                ttsReady = false
+                for (locale in locales) {
+                    val r = tts?.setLanguage(locale)
+                    if (r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED) {
+                        ttsReady = true; break
+                    }
+                }
                 if (!ttsReady) { tts?.setLanguage(Locale.getDefault()); ttsReady = true }
                 tts?.setSpeechRate(speed)
                 tts?.setPitch(pitch)

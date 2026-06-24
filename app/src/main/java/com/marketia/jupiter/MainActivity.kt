@@ -1,4 +1,3 @@
-// JUPITER v1.3.0 - Bridge Autonomous
 package com.marketia.jupiter
 
 import android.os.Bundle
@@ -10,17 +9,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.marketia.jupiter.ui.navigation.BottomNavItem
-import com.marketia.jupiter.ui.screens.autonomy.AutonomyScreen
-import com.marketia.jupiter.ui.screens.evaluation.SelfEvaluationScreen
 import com.marketia.jupiter.ui.screens.memory.MemoryScreen
 import com.marketia.jupiter.ui.screens.nucleus.NucleusScreen
 import com.marketia.jupiter.ui.screens.settings.SettingsScreen
-import com.marketia.jupiter.ui.screens.skills.SkillsScreen
 import com.marketia.jupiter.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -41,16 +39,16 @@ private fun JupiterScaffold() {
 
     val items = listOf(
         BottomNavItem.Nucleus,
-        BottomNavItem.Skills,
         BottomNavItem.Memory,
-        BottomNavItem.Config,
-        BottomNavItem.Eval,
-        BottomNavItem.Autonomy
+        BottomNavItem.Jupiter
     )
 
     Scaffold(
         bottomBar = {
-            NavigationBar(containerColor = JupiterSurface) {
+            NavigationBar(
+                containerColor = JupiterDark,
+                tonalElevation = androidx.compose.ui.unit.Dp.Unspecified
+            ) {
                 items.forEach { item ->
                     NavigationBarItem(
                         selected = currentRoute == item.route,
@@ -62,13 +60,20 @@ private fun JupiterScaffold() {
                             }
                         },
                         icon  = { Icon(item.icon, contentDescription = item.label) },
-                        label = { Text(item.label) },
+                        label = {
+                            Text(
+                                item.label,
+                                fontSize = 9.sp,
+                                fontWeight = if (currentRoute == item.route) FontWeight.Bold else FontWeight.Normal,
+                                letterSpacing = 1.5.sp
+                            )
+                        },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor   = JupiterCyan,
                             selectedTextColor   = JupiterCyan,
                             unselectedIconColor = JupiterGray,
                             unselectedTextColor = JupiterGray,
-                            indicatorColor      = JupiterDark
+                            indicatorColor      = JupiterSurface
                         )
                     )
                 }
@@ -81,11 +86,8 @@ private fun JupiterScaffold() {
             modifier         = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Nucleus.route) { NucleusScreen() }
-            composable(BottomNavItem.Skills.route)  { SkillsScreen() }
             composable(BottomNavItem.Memory.route)  { MemoryScreen() }
-            composable(BottomNavItem.Config.route)  { SettingsScreen() }
-            composable(BottomNavItem.Eval.route)      { SelfEvaluationScreen() }
-            composable(BottomNavItem.Autonomy.route) { AutonomyScreen() }
+            composable(BottomNavItem.Jupiter.route) { SettingsScreen() }
         }
     }
 }

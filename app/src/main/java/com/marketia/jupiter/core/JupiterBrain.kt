@@ -13,57 +13,66 @@ data class JupiterResponse(
 
 object JupiterBrain {
 
+    private val GREETINGS = listOf(
+        "Aquí. ¿Qué construimos?",
+        "Dime.",
+        "¿En qué trabajamos?",
+        "A tus órdenes.",
+        "Presente.",
+        "¿Qué necesitas?"
+    )
+
     fun process(input: String): JupiterResponse {
         val text = input.lowercase().trim()
         return when {
             // CODE_TASK before isVoice — "mejorar voz" = tarea de código vía bridge, no TTS local
             isCodeTask(text) -> resp(input, "CODE_TASK",
-                "Tarea de mejora registrada. Enviando al bridge para implementación automática.",
+                "Entendido. Abriendo tarea en el bridge — el daemon se encargará.",
                 "DISPATCH_BRIDGE", mapOf("task" to input))
 
             // TTS local: solo ajustes explícitos de velocidad/tono
             isVoice(text) -> resp(input, "VOICE_CUSTOMIZATION",
-                "Ajustando configuración TTS. Velocidad y tono actualizados.",
-                "APPLY_VOICE", mapOf("speed" to "0.82", "pitch" to "0.90"))
+                "Ajustado.",
+                "APPLY_VOICE", mapOf("speed" to "0.85", "pitch" to "0.93"))
 
             creates(text, "app", "aplicación", "aplicacion") -> resp(input, "CREATE_APP",
-                "App registrada. Creando estructura en memoria.",
+                "App '${extractName(input)}' registrada.",
                 "SAVE_PROJECT", mapOf("type" to "app", "name" to extractName(input)))
 
             creates(text, "skill") -> resp(input, "CREATE_SKILL",
-                "Creando skill: ${extractName(input)}. Guardando en base de datos.",
+                "Skill '${extractName(input)}' añadido a tu base de conocimiento.",
                 "CREATE_SKILL_ENTITY", mapOf("type" to "skill", "name" to extractName(input)))
 
             creates(text, "sistema") -> resp(input, "CREATE_SYSTEM",
-                "Sistema registrado. Documentando arquitectura.",
+                "Sistema '${extractName(input)}' documentado.",
                 "SAVE_SYSTEM", mapOf("type" to "sistema", "name" to extractName(input)))
 
             creates(text, "bot") -> resp(input, "CREATE_BOT",
-                "Bot registrado. Arquitectura guardada en agentes.",
+                "Bot '${extractName(input)}' registrado como agente.",
                 "SAVE_PROJECT", mapOf("type" to "bot", "name" to extractName(input)))
 
             creates(text, "agente", "agent") -> resp(input, "CREATE_AGENT",
-                "Agente IA definido. Registrando capacidades.",
+                "Agente '${extractName(input)}' definido y registrado.",
                 "SAVE_PROJECT", mapOf("type" to "agente", "name" to extractName(input)))
 
             creates(text, "automatizacion", "automatización", "flujo") -> resp(input, "CREATE_SYSTEM",
-                "Flujo de automatización registrado.",
+                "Flujo registrado. Puedo desarrollarlo si me das más contexto.",
                 "SAVE_SYSTEM", mapOf("type" to "automatizacion", "name" to extractName(input)))
 
             creates(text, "empresa", "negocio", "startup") -> resp(input, "CREATE_SYSTEM",
-                "Modelo de negocio registrado en sistema.",
+                "Modelo de negocio registrado. Dime más para ampliar el sistema.",
                 "SAVE_SYSTEM", mapOf("type" to "empresa", "name" to extractName(input)))
 
             creates(text, "curso", "contenido", "módulo", "modulo") -> resp(input, "CREATE_SKILL",
-                "Contenido del curso registrado como skill.",
+                "Contenido registrado como skill de conocimiento.",
                 "CREATE_SKILL_ENTITY", mapOf("type" to "curso", "name" to extractName(input)))
 
             creates(text, "sitio", "landing", "página", "pagina") -> resp(input, "CREATE_APP",
-                "Sitio web registrado. Definiendo arquitectura frontend.",
+                "Sitio '${extractName(input)}' registrado.",
                 "SAVE_PROJECT", mapOf("type" to "web", "name" to extractName(input)))
 
             creates(text, "marketing", "campaña", "campana", "anuncio", "ads") -> resp(input, "CREATE_SYSTEM",
-                "Estrategia de marketing registrada.",
+                "Estrategia de marketing registrada en sistema.",
                 "SAVE_SYSTEM", mapOf("type" to "marketing", "name" to extractName(input)))
 
             creates(text, "trading", "inversión", "inversion") -> resp(input, "CREATE_SYSTEM",
@@ -71,32 +80,32 @@ object JupiterBrain {
                 "SAVE_SYSTEM", mapOf("type" to "trading", "name" to extractName(input)))
 
             isSearch(text) -> resp(input, "WEB_SEARCH",
-                "Buscando: ${extractSearchQuery(text)}",
+                "Buscando \"${extractSearchQuery(text)}\"...",
                 "SEARCH", mapOf("query" to extractSearchQuery(text)))
 
             isGitHub(text) -> resp(input, "GITHUB_ACTION",
-                "Acción GitHub encolada. ClaudeCodeBridge procesará la tarea.",
+                "Tarea GitHub abierta. El daemon la procesará.",
                 "DISPATCH_BRIDGE", mapOf("action" to "inspect"))
 
             isBuild(text) -> resp(input, "BUILD_APK",
-                "Build encolado. Daemon PC compilará el APK.",
+                "Build encolado. El daemon compilará el APK.",
                 "BUILD_APK", mapOf("target" to "release"))
 
-            // INGEST_LINK: URL real detectada → bridge para análisis
+            // INGEST_LINK: URL real → bridge
             text.contains("http") || text.contains("www.") -> resp(input, "INGEST_LINK",
-                "Enlace detectado. Analizando contenido vía bridge.",
+                "Enlace recibido. El daemon lo analizará y extraerá conocimiento.",
                 "DISPATCH_BRIDGE", mapOf("url" to (extractUrl(text) ?: input), "content" to input))
 
             text.contains("guardar") || text.contains("recordar") ||
             text.contains("link") || text.contains("url") -> resp(input, "MEMORY_SAVE",
-                "Guardando en memoria.",
+                "Guardado en memoria.",
                 "MEMORY_SAVE", mapOf("content" to input))
 
-            isGreeting(text) -> resp(input, "GREETING",
-                "JÚPITER activo. Órdenes disponibles: crear skill/app/sistema, mejorar [algo], analizar enlace, buscar [tema].")
+            isGreeting(text) -> resp(input, "GREETING", GREETINGS.random())
 
             else -> resp(input, "UNKNOWN",
-                "Sin coincidencia local. Di: 'crear skill [nombre]', 'mejorar [algo]', o pega un enlace. Activa IA en Ajustes para interpretación libre.",
+                "No lo reconozco en modo local. Di: 'crear skill', 'mejorar algo', o pega un enlace. " +
+                "Para lenguaje libre, activa un proveedor IA en JÚPITER.",
                 "CLARIFY")
         }
     }
