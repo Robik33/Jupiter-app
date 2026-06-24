@@ -30,7 +30,7 @@ class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
     val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
-        val providerName = prefs[JupiterSettings.PROVIDER] ?: AIProvider.LOCAL.name
+        val providerName = prefs[JupiterSettings.PROVIDER] ?: AIProvider.OPENROUTER.name
         AppSettings(
             provider      = runCatching { AIProvider.valueOf(providerName) }.getOrDefault(AIProvider.LOCAL),
             apiKey        = prefs[JupiterSettings.API_KEY]        ?: "",

@@ -223,6 +223,7 @@ private fun JarvisResponseCard(response: JupiterResponse, onDismiss: () -> Unit)
         response.typeDetected.contains("SEARCH") -> Color(0xFFFFD700)
         response.typeDetected.contains("GREETING") -> JupiterCyan
         response.typeDetected.contains("VOICE") -> Color(0xFFFF8800)
+        response.typeDetected == "CONFIG" -> Color(0xFFFF5722)
         response.typeDetected == "UNKNOWN" -> JupiterGray
         else -> JupiterCyan
     }

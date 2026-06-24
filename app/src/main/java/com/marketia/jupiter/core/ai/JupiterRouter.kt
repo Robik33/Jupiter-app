@@ -4,7 +4,6 @@ import com.marketia.jupiter.core.JupiterBrain
 import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.core.registry.ToolRegistry
 import com.marketia.jupiter.data.repository.JupiterRepository
-import com.marketia.jupiter.data.settings.SettingsRepository
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -13,20 +12,21 @@ import javax.inject.Singleton
 class JupiterRouter @Inject constructor(
     private val aiClient: JupiterAIClient,
     private val toolRegistry: ToolRegistry,
-    private val settingsRepository: SettingsRepository,
     private val repository: JupiterRepository
 ) {
     suspend fun route(userInput: String): JupiterResponse {
-        val settings = settingsRepository.getCurrentSettings()
-        val useAI = (settings.provider != AIProvider.LOCAL && settings.apiKey.isNotBlank()) ||
-                    settings.provider == AIProvider.OLLAMA ||
-                    settings.provider == AIProvider.HERMES
-
-        val result: RouterResult = if (useAI) {
-            val raw = runCatching { aiClient.call(userInput) }.getOrNull()
-            if (raw != null) parseAI(raw) else localRoute(userInput)
-        } else {
-            localRoute(userInput)
+        // Always try AI first — local only if no internet (IOException)
+        val result: RouterResult = try {
+            val raw = aiClient.call(userInput)
+            if (raw != null) parseAI(raw) else noProviderResult()
+        } catch (_: java.net.UnknownHostException) {
+            localRoute(userInput)   // No DNS → offline → local rules
+        } catch (_: java.net.SocketException) {
+            localRoute(userInput)   // Connection reset → offline
+        } catch (_: java.net.SocketTimeoutException) {
+            localRoute(userInput)   // Timeout → treat as offline
+        } catch (_: Exception) {
+            localRoute(userInput)   // Any other network failure
         }
 
         // Side-effect: execute tool if action maps to one
@@ -101,9 +101,17 @@ class JupiterRouter @Inject constructor(
         return obj.keys().asSequence().associateWith { obj.optString(it) }
     }
 
+    private fun noProviderResult() = RouterResult(
+        intent   = "CONFIG",
+        skill    = null,
+        response = "Sin clave IA activa. Obtén tu clave gratuita en openrouter.ai y añádela en JÚPITER → Configuración.",
+        action   = "OPEN_SETTINGS",
+        params   = emptyMap()
+    )
+
     private fun unknownResult() = RouterResult(
         intent = "UNKNOWN", skill = null,
-        response = "¿Quieres que lo convierta en un skill, ajuste de voz, proyecto o búsqueda web?",
+        response = "Sin conexión. Comandos offline: 'crear skill', 'mejorar algo', o pega un enlace.",
         action = "CLARIFY", params = emptyMap()
     )
 
