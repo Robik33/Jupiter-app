@@ -121,6 +121,50 @@ class NucleusViewModel @Inject constructor(
                 )
             }
 
+            // Multi-step orchestration check — before single-intent routing
+            if (orchestrator.isMultiStep(text)) {
+                val steps = orchestrator.planMultiStep(text)
+                val bridgeSteps = steps.filter { it.requiresBridge }
+                var dispatched = 0
+
+                bridgeSteps.forEach { step ->
+                    runCatching {
+                        val prompt = "${step.title}: ${step.description}\n\nContexto original: $text"
+                        repository.submitTask(step.title, prompt, "HIGH")
+                        val qid = promptBridgeService.createAndQueue(prompt, "orchestrator")
+                        if (promptBridgeService.dispatch(qid)) dispatched++
+                    }
+                }
+
+                if (dispatched > 0) otaShown = false
+
+                val planText = buildString {
+                    appendLine("Plan activado — ${steps.size} acciones:")
+                    appendLine()
+                    steps.forEach { s ->
+                        val tag = if (s.requiresBridge) "bridge" else "local"
+                        appendLine("${s.stepNumber}. ${s.title} [$tag]")
+                    }
+                    appendLine()
+                    append("Bridge: $dispatched tarea(s) despachada(s) al daemon.")
+                }
+
+                val planResult = JupiterResponse(
+                    orderReceived = text,
+                    typeDetected  = "MULTI_PLAN",
+                    nextAction    = planText.trim(),
+                    status        = "EJECUTANDO",
+                    action        = "PLAN_EXECUTING",
+                    params        = mapOf("steps" to steps.size.toString(), "dispatched" to dispatched.toString())
+                )
+                _response.value = planResult
+                _state.value = NucleusState.Responding(planResult)
+                withContext(Dispatchers.Main) {
+                    voiceEngine.speak("Plan creado con ${steps.size} acciones. ${dispatched} tareas enviadas al daemon.")
+                }
+                return@launch
+            }
+
             val result = router.route(text)
 
             // Handle APPLY_VOICE immediately in ViewModel

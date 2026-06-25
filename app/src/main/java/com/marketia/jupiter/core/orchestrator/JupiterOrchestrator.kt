@@ -22,6 +22,14 @@ data class OrchestratorResult(
     val taskId: Long = 0
 )
 
+data class OrchestratorStep(
+    val stepNumber: Int,
+    val title: String,
+    val description: String,
+    val requiresBridge: Boolean,
+    val category: String = "code"
+)
+
 @Singleton
 class JupiterOrchestrator @Inject constructor(
     private val repository: JupiterRepository,
@@ -110,6 +118,73 @@ class JupiterOrchestrator @Inject constructor(
             lower.contains("kotlin") || lower.contains("python") || lower.contains("corregir") ->
                 UserIntent.CODE_TASK
             else -> UserIntent.UNKNOWN
+        }
+    }
+
+    fun isMultiStep(command: String): Boolean {
+        val lower = command.lowercase()
+        val complexVerbs = listOf(
+            "hazte", "se mas", "vuelvete", "mejorate", "transforma",
+            "convierte", "evoluciona", "conviertete", "hazme", "hazlo"
+        )
+        val openTargets = listOf(
+            "jarvis", "mejor asistente", "mas capaz", "mas inteligente",
+            "autonomo", "autonoma", "completo", "completa", "real", "verdadero"
+        )
+        return complexVerbs.any { lower.contains(it) } ||
+               openTargets.any { lower.contains(it) }
+    }
+
+    fun planMultiStep(command: String): List<OrchestratorStep> {
+        val lower = command.lowercase()
+        return when {
+            lower.contains("jarvis") || lower.contains("asistente") ||
+            lower.contains("completo") || lower.contains("autonomo") ||
+            lower.contains("autonoma") || lower.contains("mejor asistente") ->
+                listOf(
+                    OrchestratorStep(1, "Mejorar voz",
+                        "Modificar TTS para sonar mas natural, expresivo y menos robotico",
+                        true, "voice"),
+                    OrchestratorStep(2, "Mejorar interfaz",
+                        "Redisenar cards con animaciones premium y feedback visual claro",
+                        true, "ui"),
+                    OrchestratorStep(3, "Mejorar interpretacion",
+                        "Expandir contexto multi-turno y memoria entre sesiones",
+                        true, "nlp"),
+                    OrchestratorStep(4, "Activar planeacion",
+                        "Conectar JupiterOrchestrator al ciclo de decision principal",
+                        false, "code"),
+                    OrchestratorStep(5, "Autodiagnostico",
+                        "Ejecutar SelfEvaluationEngine y reportar metricas reales",
+                        false, "eval")
+                )
+            lower.contains("rapido") || lower.contains("veloc") || lower.contains("lento") ->
+                listOf(
+                    OrchestratorStep(1, "Optimizar Room",
+                        "Anadir indices y queries paginadas en PromptInboxDao", true, "code"),
+                    OrchestratorStep(2, "Cache de respuestas",
+                        "Implementar cache LRU para respuestas frecuentes de IA", true, "code"),
+                    OrchestratorStep(3, "Startup lazy",
+                        "Diferir init de componentes no criticos al primer uso", true, "code")
+                )
+            lower.contains("memoria") || lower.contains("recuerd") || lower.contains("aprend") ->
+                listOf(
+                    OrchestratorStep(1, "Expandir MemoryEntity",
+                        "Anadir campos de contexto, timestamp y tipo de memoria", true, "code"),
+                    OrchestratorStep(2, "Memoria entre sesiones",
+                        "Cargar ultimos 10 intercambios relevantes en el prompt de sistema", true, "code"),
+                    OrchestratorStep(3, "Indexado semantico",
+                        "Skills + Memory con busqueda por similitud de palabras clave", true, "code")
+                )
+            else ->
+                listOf(
+                    OrchestratorStep(1, "Analizar objetivo",
+                        "Interpretar comando y descomponer en tareas atomicas", false, "eval"),
+                    OrchestratorStep(2, "Planificar cambios",
+                        "Generar plan de ejecucion especifico para: $command", true, "code"),
+                    OrchestratorStep(3, "Ejecutar y verificar",
+                        "Ejecutar pasos y validar resultado con build", true, "code")
+                )
         }
     }
 

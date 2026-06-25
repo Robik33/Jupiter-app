@@ -235,6 +235,7 @@ private fun JarvisResponseCard(
 ) {
     // Determine accent by intent
     val accent = when {
+        response.typeDetected == "MULTI_PLAN"                                              -> Color(0xFFFFAB40)
         response.typeDetected.contains("CODE") || response.typeDetected.contains("BUILD") -> Color(0xFF7C4DFF)
         response.typeDetected.contains("SKILL") || response.typeDetected.contains("CREATE") -> JupiterGreen
         response.typeDetected.contains("INGEST") || response.typeDetected.contains("LINK") -> Color(0xFF00E5FF)
