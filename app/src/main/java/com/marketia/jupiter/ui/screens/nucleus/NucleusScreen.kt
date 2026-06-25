@@ -139,7 +139,21 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
                 enter   = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 3 },
                 exit    = fadeOut(tween(250)) + slideOutVertically(tween(250)) { it / 3 }
             ) {
-                response?.let { JarvisResponseCard(it) { viewModel.clearResponse() } }
+                response?.let { r ->
+                    JarvisResponseCard(
+                        response  = r,
+                        onDismiss = { viewModel.clearResponse() },
+                        onInstall = if (r.action == "OTA_READY") {
+                            {
+                                viewModel.installOTA(
+                                    r.params["apkUrl"]     ?: "",
+                                    r.params["sha256"]     ?: "",
+                                    r.params["releaseUrl"] ?: ""
+                                )
+                            }
+                        } else null
+                    )
+                }
             }
 
             Spacer(Modifier.height(14.dp))
@@ -214,7 +228,11 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun JarvisResponseCard(response: JupiterResponse, onDismiss: () -> Unit) {
+private fun JarvisResponseCard(
+    response: JupiterResponse,
+    onDismiss: () -> Unit,
+    onInstall: (() -> Unit)? = null
+) {
     // Determine accent by intent
     val accent = when {
         response.typeDetected.contains("CODE") || response.typeDetected.contains("BUILD") -> Color(0xFF7C4DFF)
@@ -323,6 +341,24 @@ private fun JarvisResponseCard(response: JupiterResponse, onDismiss: () -> Unit)
                     fontSize      = 10.sp,
                     letterSpacing = 0.5.sp
                 )
+            }
+
+            // OTA install button
+            if (onInstall != null) {
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onInstall,
+                    colors  = ButtonDefaults.buttonColors(containerColor = accent),
+                    shape   = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text       = "INSTALAR AHORA",
+                        fontSize   = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
             }
         }
     }

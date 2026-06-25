@@ -10,6 +10,8 @@ import com.marketia.jupiter.core.orchestrator.JupiterOrchestrator
 import com.marketia.jupiter.core.skills.SkillCreatorEngine
 import com.marketia.jupiter.core.oracle.OracleHermesClient
 import com.marketia.jupiter.core.oracle.OracleState
+import com.marketia.jupiter.core.update.UpdateManager
+import com.marketia.jupiter.core.update.UpdateManifest
 import com.marketia.jupiter.data.entity.PromptInboxEntity
 import com.marketia.jupiter.data.repository.JupiterRepository
 import com.marketia.jupiter.data.settings.SettingsRepository
@@ -40,7 +42,8 @@ class NucleusViewModel @Inject constructor(
     private val oracleClient: OracleHermesClient,
     private val promptBridgeService: PromptBridgeService,
     private val orchestrator: JupiterOrchestrator,
-    private val skillCreator: SkillCreatorEngine
+    private val skillCreator: SkillCreatorEngine,
+    private val updateManager: UpdateManager
 ) : ViewModel() {
 
     private val _state        = MutableStateFlow<NucleusState>(NucleusState.Idle)
@@ -183,6 +186,22 @@ class NucleusViewModel @Inject constructor(
     fun stopListening() {
         voiceEngine.stopListening()
         _state.value = NucleusState.Idle
+    }
+
+    fun installOTA(apkUrl: String, sha256: String, releaseUrl: String) {
+        viewModelScope.launch {
+            val manifest = UpdateManifest(
+                versionCode = Int.MAX_VALUE,
+                versionName = "auto",
+                apkUrl      = apkUrl,
+                releaseUrl  = releaseUrl,
+                sha256      = sha256,
+                sizeBytes   = 0L,
+                mandatory   = false,
+                changelog   = emptyList()
+            )
+            runCatching { updateManager.downloadAndInstall(manifest) }
+        }
     }
 
     fun clearResponse() {
