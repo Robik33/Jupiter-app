@@ -18,7 +18,7 @@ class JupiterRouter @Inject constructor(
         // Always try AI first — local only if no internet (IOException)
         val result: RouterResult = try {
             val raw = aiClient.call(userInput)
-            if (raw != null) parseAI(raw) else noProviderResult()
+            if (raw != null) parseAI(raw) else localRoute(userInput)
         } catch (_: java.net.UnknownHostException) {
             localRoute(userInput)   // No DNS → offline → local rules
         } catch (_: java.net.SocketException) {

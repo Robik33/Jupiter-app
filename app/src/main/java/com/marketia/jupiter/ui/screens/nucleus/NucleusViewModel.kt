@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -57,19 +58,49 @@ class NucleusViewModel @Inject constructor(
     private val _oracleState  = MutableStateFlow(OracleState())
     val oracleState: StateFlow<OracleState> = _oracleState.asStateFlow()
 
+    private var otaShown = false
+
     init {
         viewModelScope.launch {
             repository.seedIfEmpty()
             val s = settingsRepository.getCurrentSettings()
             voiceEngine.setSpeed(s.voiceSpeed)
             voiceEngine.setPitch(s.voicePitch)
+            syncBridgeResults()
         }
-        // Poll ORACLE state every 30 seconds
+        // Poll ORACLE + bridge sync every 60 seconds
         viewModelScope.launch {
             while (true) {
                 _oracleState.value = oracleClient.fetchOracleState()
-                delay(30_000L)
+                val active = runCatching { repository.countActivePrompts() }.getOrDefault(0)
+                if (active > 0) {
+                    runCatching { promptBridgeService.syncAll() }
+                }
+                delay(60_000L)
             }
+        }
+        // React to completed bridge tasks (OTA notification)
+        viewModelScope.launch {
+            repository.promptInbox.collect { entries ->
+                val done = entries.firstOrNull { it.status == "DONE" && it.apkUrl.isNotBlank() }
+                if (done != null && !otaShown) {
+                    otaShown = true
+                    _response.value = JupiterResponse(
+                        orderReceived = done.rawPrompt.take(80),
+                        typeDetected  = "BUILD_COMPLETE",
+                        nextAction    = "Build listo. Nueva version disponible: ${done.releaseUrl.substringAfterLast("/").take(20)}",
+                        status        = "COMPLETADO",
+                        action        = "OTA_READY",
+                        params        = mapOf("apkUrl" to done.apkUrl, "releaseUrl" to done.releaseUrl)
+                    )
+                }
+            }
+        }
+    }
+
+    fun syncBridgeResults() {
+        viewModelScope.launch {
+            runCatching { promptBridgeService.syncAll() }
         }
     }
 
@@ -115,8 +146,16 @@ class NucleusViewModel @Inject constructor(
             if (result.action == "DISPATCH_BRIDGE" ||
                 result.typeDetected in listOf("CODE_TASK", "INGEST_LINK")) {
                 runCatching {
+                    repository.submitTask(text.take(80), text, "HIGH")
                     val queueId = promptBridgeService.createAndQueue(text, inputSource)
-                    promptBridgeService.dispatch(queueId)
+                    val dispatched = promptBridgeService.dispatch(queueId)
+                    if (dispatched) {
+                        otaShown = false
+                        viewModelScope.launch {
+                            delay(30_000L)
+                            runCatching { promptBridgeService.syncAll() }
+                        }
+                    }
                 }
             }
 
