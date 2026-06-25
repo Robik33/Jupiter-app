@@ -163,13 +163,9 @@ function Get-VersionFromGradle {
 }
 
 # PUBLISH
-function Upload-Catbox {
-    param([string]$FilePath)
-    Write-Log "  Subiendo APK a Catbox.moe..."
-    $url = & curl.exe -s -F "reqtype=fileupload" -F "fileToUpload=@$FilePath" https://catbox.moe/user/api.php
-    if ($url -notlike "https://*") { throw "Catbox upload fallo: $url" }
-    Write-Log "  Catbox URL: $url" "OK"
-    return $url.Trim()
+function Get-GhReleaseAssetUrl {
+    param([string]$Tag, [string]$Filename)
+    return "https://github.com/$REPO/releases/download/$Tag/$Filename"
 }
 
 function New-GhRelease {
@@ -274,18 +270,17 @@ function Invoke-Task {
         $vCode  = $ver.code
         $vName  = $ver.name
         $tag    = "v$vName"
-        $sha256 = (Get-FileHash $apkFile.FullName -Algorithm SHA256).Hash
-        $dest   = Join-Path $RELEASES_DIR "jupiter-$tag.apk"
+        $sha256   = (Get-FileHash $apkFile.FullName -Algorithm SHA256).Hash
+        $filename = "jupiter-$tag-release.apk"
+        $dest     = Join-Path $RELEASES_DIR $filename
         Copy-Item $apkFile.FullName $dest -Force
 
-        # 4. Catbox upload
-        $apkUrl = Upload-Catbox -FilePath $dest
-
-        # 5. GitHub Release
+        # 4. GitHub Release (APK as asset — no Catbox)
         $notes      = "JUPITER $tag - SHA256: $sha256 - Build desde issue #${num}"
         $releaseUrl = New-GhRelease -Tag $tag -ApkPath $dest -Notes $notes
+        $apkUrl     = Get-GhReleaseAssetUrl -Tag $tag -Filename $filename
 
-        # 6. Gist manifest
+        # 5. Gist manifest
         Update-GistManifest -VCode $vCode -VName $vName -ApkUrl $apkUrl -ReleaseUrl $releaseUrl -Sha256 $sha256 -SizeBytes $apkFile.Length -Changelog "Auto-build #${num}: $title"
 
         # 7. Push code
@@ -293,7 +288,7 @@ function Invoke-Task {
 
         # 8. Comment + close
         $claudeSummary = if ($claudeOutput) { $claudeOutput.Substring(0, [Math]::Min(500, $claudeOutput.Length)) } else { "(sin salida)" }
-        $ok = "JUPITER DAEMON - COMPLETADO`n`nRESULT: success`nAPK_URL: $apkUrl`nRELEASE_URL: $releaseUrl`nSHA256: $sha256`nVERSION: $vName (code $vCode)`n`nClaude Code: $claudeSummary`n`nDaemon ${tag} - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        $ok = "JUPITER DAEMON - COMPLETADO`n`nRESULT: success`nAPK_GITHUB_URL: $apkUrl`nRELEASE_URL: $releaseUrl`nSHA256: $sha256`nVERSION: $vName (code $vCode)`n`nClaude Code: $claudeSummary`n`nDaemon ${tag} - $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
         Add-IssueComment -IssueNum $num -CommentBody $ok
         Set-IssueLabels -IssueNum $num -Add @("jupiter-done") -Remove @("jupiter-running")
         Close-Issue -IssueNum $num
