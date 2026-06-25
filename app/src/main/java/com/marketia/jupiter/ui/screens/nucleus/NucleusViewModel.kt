@@ -189,9 +189,9 @@ class NucleusViewModel @Inject constructor(
                 }
             }
 
-            // DISPATCH_BRIDGE: CODE_TASK, INGEST_LINK, GITHUB_ACTION → send to daemon via bridge
+            // DISPATCH_BRIDGE: CODE_TASK, INGEST_LINK, AI_CHAT → send to daemon via bridge
             if (result.action == "DISPATCH_BRIDGE" ||
-                result.typeDetected in listOf("CODE_TASK", "INGEST_LINK")) {
+                result.typeDetected in listOf("CODE_TASK", "INGEST_LINK", "AI_CHAT")) {
                 runCatching {
                     repository.submitTask(text.take(80), text, "HIGH")
                     val queueId = promptBridgeService.createAndQueue(text, inputSource)

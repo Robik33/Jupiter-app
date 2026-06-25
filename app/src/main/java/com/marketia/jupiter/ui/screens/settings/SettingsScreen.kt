@@ -33,14 +33,17 @@ import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
-    val settings     by viewModel.settings.collectAsState()
-    val updateState  by viewModel.updateState.collectAsState()
-    var showApiKey     by remember { mutableStateOf(false) }
-    var showGithubPat  by remember { mutableStateOf(false) }
-    var apiKeyDraft    by remember(settings.apiKey)     { mutableStateOf(settings.apiKey) }
-    var modelDraft     by remember(settings.model)      { mutableStateOf(settings.model) }
-    var ollamaUrlDraft by remember(settings.ollamaUrl)  { mutableStateOf(settings.ollamaUrl) }
-    var githubPatDraft by remember(settings.githubPat)  { mutableStateOf(settings.githubPat) }
+    val settings        by viewModel.settings.collectAsState()
+    val updateState     by viewModel.updateState.collectAsState()
+    val aiTestResult    by viewModel.aiTestResult.collectAsState()
+    var showApiKey        by remember { mutableStateOf(false) }
+    var showGithubPat     by remember { mutableStateOf(false) }
+    var showOpenrouterKey by remember { mutableStateOf(false) }
+    var apiKeyDraft       by remember(settings.apiKey)          { mutableStateOf(settings.apiKey) }
+    var modelDraft        by remember(settings.model)           { mutableStateOf(settings.model) }
+    var ollamaUrlDraft    by remember(settings.ollamaUrl)       { mutableStateOf(settings.ollamaUrl) }
+    var githubPatDraft    by remember(settings.githubPat)       { mutableStateOf(settings.githubPat) }
+    var openrouterDraft   by remember(settings.openrouterKey)   { mutableStateOf(settings.openrouterKey) }
 
     Column(
         modifier = Modifier
@@ -81,6 +84,57 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
 
             Spacer(Modifier.height(16.dp))
+
+            // ── OPENROUTER FREE (always visible — fallback AI when provider is LOCAL) ──
+            HorizontalDivider(color = JupiterSurface, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+            SectionLabel("OPENROUTER (GRATIS)")
+            OutlinedTextField(
+                value = openrouterDraft,
+                onValueChange = { openrouterDraft = it; viewModel.setOpenrouterKey(it) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("sk-or-v1-...", color = JupiterGray, fontSize = 13.sp) },
+                visualTransformation = if (showOpenrouterKey) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                trailingIcon = {
+                    IconButton(onClick = { showOpenrouterKey = !showOpenrouterKey }) {
+                        Icon(
+                            if (showOpenrouterKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = "Toggle",
+                            tint = JupiterGray
+                        )
+                    }
+                },
+                colors = jupiterFieldColors(),
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
+            Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Modelos gratis: deepseek-r1, qwen3-8b, llama-3.2, mistral-7b",
+                    color = JupiterGray.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { viewModel.testAIConnection() }) {
+                    Text("PROBAR", color = JupiterCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            aiTestResult?.let { result ->
+                val isOk = result.startsWith("OK")
+                Text(
+                    result,
+                    color = if (isOk) JupiterGreen else Color(0xFFFFAA00),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
 
             // ── API KEY ────────────────────────────────────────────────────────
             if (settings.provider != AIProvider.LOCAL) {

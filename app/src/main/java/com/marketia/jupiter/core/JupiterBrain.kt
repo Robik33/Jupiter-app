@@ -8,7 +8,12 @@ data class JupiterResponse(
     val action: String? = null,
     val params: Map<String, String> = emptyMap()
 ) {
-    fun toSpokenText(): String = nextAction
+    fun toSpokenText(): String = when (typeDetected) {
+        "AI_CHAT"      -> "Consulta enviada."
+        "MULTI_PLAN"   -> "Plan creado."
+        "BUILD_COMPLETE" -> "Build listo."
+        else           -> nextAction.take(120)
+    }
 }
 
 object JupiterBrain {
@@ -207,8 +212,8 @@ object JupiterBrain {
                     "CREATE_SKILL_ENTITY", mapOf("name" to extractName(input), "type" to "general"))
             else ->
                 resp(input, "AI_CHAT",
-                    "Sin conexion para responder eso. Prueba: crear skill, mejorar algo, o pega un enlace.",
-                    null, mapOf("query" to input))
+                    "Consulta enviada al daemon. Claude Code la procesara cuando haya conexion.",
+                    "DISPATCH_BRIDGE", mapOf("query" to input, "category" to "ai_chat"))
         }
     }
 

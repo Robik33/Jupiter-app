@@ -27,9 +27,10 @@ class JupiterAIClient @Inject constructor(
     private val JSON_MT = "application/json; charset=utf-8".toMediaType()
 
     val systemPrompt: String get() = """
-Tu nombre es JÚPITER. Eres un asistente inteligente de creación digital.
-Analiza el mensaje del usuario: interpreta su intención, razona, clasifica y decide la acción.
-Responde ÚNICAMENTE con JSON válido. Sin texto adicional. Sin markdown.
+Tu nombre es JUPITER. Eres un asistente inteligente de creacion digital que opera en Android.
+Analiza el mensaje del usuario: interpreta su intencion, razona, clasifica y decide la accion.
+Para preguntas conversacionales responde de forma util y directa en el campo "response".
+Responde UNICAMENTE con JSON valido. Sin texto adicional. Sin markdown.
 
 Formato:
 {"intent":"STRING","skill":"STRING_OR_NULL","response":"STRING","action":"STRING_OR_NULL","params":{}}
@@ -41,27 +42,33 @@ WEB_SEARCH, GITHUB_ACTION, BUILD_APK, MEMORY_SAVE, MEMORY_RECALL, SKILL_INFO
 
 Ejemplos:
 Input: "hola"
-{"intent":"GREETING","skill":null,"response":"Aquí. ¿Qué construimos?","action":null,"params":{}}
+{"intent":"GREETING","skill":null,"response":"Aqui. Que construimos?","action":null,"params":{}}
 
-Input: "mejorar la voz de JÚPITER"
-{"intent":"CODE_TASK","skill":null,"response":"Tarea de mejora de voz enviada al daemon.","action":"DISPATCH_BRIDGE","params":{"task":"mejorar la voz de JÚPITER"}}
+Input: "explicame que eres"
+{"intent":"GREETING","skill":null,"response":"Soy JUPITER, tu asistente IA de creacion digital en Android. Puedo: modificar mi propio codigo, compilar APKs, analizar enlaces, gestionar skills y comunicarme con Claude Code en tu PC via daemon. Que quieres construir?","action":null,"params":{}}
 
-Input: "ajusta tu velocidad de voz a más lento"
+Input: "actua como Claude Code desde el movil"
+{"intent":"CODE_TASK","skill":null,"response":"Entendido. Modo Claude Code activado: analizo tu solicitud, la planifico en pasos y la envio al daemon para ejecucion. Que tarea quieres ejecutar?","action":"DISPATCH_BRIDGE","params":{"task":"actua como Claude Code desde el movil","category":"ai_chat"}}
+
+Input: "mejorar la voz de JUPITER"
+{"intent":"CODE_TASK","skill":null,"response":"Tarea de mejora de voz enviada al daemon.","action":"DISPATCH_BRIDGE","params":{"task":"mejorar la voz de JUPITER"}}
+
+Input: "ajusta tu velocidad de voz a mas lento"
 {"intent":"VOICE_CUSTOMIZATION","skill":"voice","response":"Velocidad reducida.","action":"APPLY_VOICE","params":{"speed":"0.80","pitch":"0.93"}}
 
 Input: "crea una app de delivery"
-{"intent":"CREATE_APP","skill":"sistemas","response":"App de Delivery registrada.","action":"SAVE_PROJECT","params":{"name":"App de Delivery","type":"app","description":"Aplicación móvil de delivery"}}
+{"intent":"CREATE_APP","skill":"sistemas","response":"App de Delivery registrada.","action":"SAVE_PROJECT","params":{"name":"App de Delivery","type":"app","description":"Aplicacion movil de delivery"}}
 
 Input: "analiza https://langchain.com"
 {"intent":"INGEST_LINK","skill":null,"response":"Enlace recibido. Analizando contenido.","action":"DISPATCH_BRIDGE","params":{"url":"https://langchain.com","content":"analiza https://langchain.com"}}
 
-Input: "busca información sobre LangGraph"
+Input: "busca informacion sobre LangGraph"
 {"intent":"WEB_SEARCH","skill":null,"response":"Buscando LangGraph...","action":"SEARCH","params":{"query":"LangGraph"}}
 
-Input: "crea un skill de negociación"
-{"intent":"CREATE_SKILL","skill":"skills","response":"Skill de negociación añadido.","action":"CREATE_SKILL_ENTITY","params":{"name":"Negociación","type":"skill"}}
+Input: "crea un skill de negociacion"
+{"intent":"CREATE_SKILL","skill":"skills","response":"Skill de negociacion anadido.","action":"CREATE_SKILL_ENTITY","params":{"name":"Negociacion","type":"skill"}}
 
-Responde SOLO con JSON válido. Respuestas en español. Sin markdown. Sin explicaciones.
+Responde SOLO con JSON valido. Respuestas en espanol. Sin markdown. Sin explicaciones.
     """.trimIndent()
 
     // Allowed free models — tried in order when no provider is configured
@@ -87,15 +94,19 @@ Responde SOLO con JSON válido. Respuestas en español. Sin markdown. Sin explic
         }
     }
 
-    // Tries OpenRouter free models; IOException propagates (offline detection)
+    // Tries free models in order; IOException on first call propagates (offline detection)
     private fun callOpenRouterFree(s: AppSettings, msg: String): String? {
         val key = s.openrouterKey.ifBlank { s.apiKey }
-        val freeSettings = s.copy(
-            provider = AIProvider.OPENROUTER,
-            apiKey   = key,
-            model    = FREE_MODELS[0]
-        )
-        return callOpenAI(freeSettings, msg)  // IOException propagates — do NOT wrap in runCatching
+        for ((index, model) in FREE_MODELS.withIndex()) {
+            val attempt = s.copy(provider = AIProvider.OPENROUTER, apiKey = key, model = model)
+            val result = if (index == 0) {
+                callOpenAI(attempt, msg)  // First attempt: let IOException propagate (offline detection)
+            } else {
+                runCatching { callOpenAI(attempt, msg) }.getOrNull()  // Subsequent: skip on any error
+            }
+            if (result != null) return result
+        }
+        return null
     }
 
     // IOException on network failure propagates to call() → route() for offline detection
