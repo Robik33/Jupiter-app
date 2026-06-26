@@ -81,37 +81,42 @@ Responde SOLO con JSON valido. Respuestas en espanol. Sin markdown. Sin explicac
 
     // Throws IOException on network failure (caller catches for offline detection)
     // Returns null if AI is reachable but auth/parse failed (caller shows config prompt)
-    suspend fun call(userMessage: String): String? = withContext(Dispatchers.IO) {
+    suspend fun call(
+        userMessage: String,
+        history: List<Pair<String, String>> = emptyList()
+    ): String? = withContext(Dispatchers.IO) {
         val s = settingsRepository.getCurrentSettings()
         when {
             s.provider == AIProvider.CLAUDE ->
-                runCatching { callClaude(s, userMessage) }.getOrNull()
-            // LOCAL or blank key: auto-route to OpenRouter free models
+                runCatching { callClaude(s, userMessage, history) }.getOrNull()
             s.provider == AIProvider.LOCAL || s.apiKey.isBlank() ->
-                callOpenRouterFree(s, userMessage)
+                callOpenRouterFree(s, userMessage, history)
             else ->
-                runCatching { callOpenAI(s, userMessage) }.getOrNull()
+                runCatching { callOpenAI(s, userMessage, history) }.getOrNull()
         }
     }
 
-    // Tries free models in order; IOException on first call propagates (offline detection)
-    private fun callOpenRouterFree(s: AppSettings, msg: String): String? {
+    private fun callOpenRouterFree(
+        s: AppSettings, msg: String,
+        history: List<Pair<String, String>> = emptyList()
+    ): String? {
         val key = s.openrouterKey.ifBlank { s.apiKey }
         for ((index, model) in FREE_MODELS.withIndex()) {
             val attempt = s.copy(provider = AIProvider.OPENROUTER, apiKey = key, model = model)
             val result = if (index == 0) {
-                callOpenAI(attempt, msg)  // First attempt: let IOException propagate (offline detection)
+                callOpenAI(attempt, msg, history)
             } else {
-                runCatching { callOpenAI(attempt, msg) }.getOrNull()  // Subsequent: skip on any error
+                runCatching { callOpenAI(attempt, msg, history) }.getOrNull()
             }
             if (result != null) return result
         }
         return null
     }
 
-    // IOException on network failure propagates to call() → route() for offline detection
-    // Returns null on HTTP auth error (401/403) — not an exception
-    private fun callOpenAI(s: AppSettings, userMessage: String): String? {
+    private fun callOpenAI(
+        s: AppSettings, userMessage: String,
+        history: List<Pair<String, String>> = emptyList()
+    ): String? {
         val model = s.model.ifBlank { s.provider.defaultModel }
         val baseUrl = when (s.provider) {
             AIProvider.OPENROUTER -> "https://openrouter.ai/api/v1/chat/completions"
@@ -124,6 +129,10 @@ Responde SOLO con JSON valido. Respuestas en espanol. Sin markdown. Sin explicac
             put("max_tokens", 512)
             put("messages", JSONArray().apply {
                 put(JSONObject().put("role", "system").put("content", systemPrompt))
+                history.forEach { (u, a) ->
+                    put(JSONObject().put("role", "user").put("content", u))
+                    put(JSONObject().put("role", "assistant").put("content", a))
+                }
                 put(JSONObject().put("role", "user").put("content", userMessage))
             })
         }
@@ -149,13 +158,20 @@ Responde SOLO con JSON valido. Respuestas en espanol. Sin markdown. Sin explicac
         }.getOrNull()
     }
 
-    private fun callClaude(s: AppSettings, userMessage: String): String? {
+    private fun callClaude(
+        s: AppSettings, userMessage: String,
+        history: List<Pair<String, String>> = emptyList()
+    ): String? {
         val model = s.model.ifBlank { s.provider.defaultModel }
         val body = JSONObject().apply {
             put("model", model)
             put("max_tokens", 512)
             put("system", systemPrompt)
             put("messages", JSONArray().apply {
+                history.forEach { (u, a) ->
+                    put(JSONObject().put("role", "user").put("content", u))
+                    put(JSONObject().put("role", "assistant").put("content", a))
+                }
                 put(JSONObject().put("role", "user").put("content", userMessage))
             })
         }

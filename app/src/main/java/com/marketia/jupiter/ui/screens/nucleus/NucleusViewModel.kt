@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.core.VoiceEngine
+import com.marketia.jupiter.core.ai.ConversationHistory
 import com.marketia.jupiter.core.ai.JupiterRouter
 import com.marketia.jupiter.core.bridge.PromptBridgeService
+import com.marketia.jupiter.core.ingestion.LinkAnalyzer
 import com.marketia.jupiter.core.orchestrator.JupiterOrchestrator
 import com.marketia.jupiter.core.skills.SkillCreatorEngine
 import com.marketia.jupiter.core.oracle.OracleHermesClient
@@ -44,7 +46,9 @@ class NucleusViewModel @Inject constructor(
     private val promptBridgeService: PromptBridgeService,
     private val orchestrator: JupiterOrchestrator,
     private val skillCreator: SkillCreatorEngine,
-    private val updateManager: UpdateManager
+    private val updateManager: UpdateManager,
+    private val conversationHistory: ConversationHistory,
+    private val linkAnalyzer: LinkAnalyzer
 ) : ViewModel() {
 
     private val _state        = MutableStateFlow<NucleusState>(NucleusState.Idle)
@@ -191,7 +195,7 @@ class NucleusViewModel @Inject constructor(
                 return@launch
             }
 
-            val result = router.route(text)
+            val result = router.route(text, conversationHistory.get())
 
             // Handle APPLY_VOICE immediately in ViewModel
             if (result.action == "APPLY_VOICE") {
@@ -230,6 +234,35 @@ class NucleusViewModel @Inject constructor(
                         }
                     }
                 }
+            }
+
+            // INGEST_LINK: analyze URL inline for immediate skill creation + feedback
+            if (result.typeDetected == "INGEST_LINK") {
+                val url = result.params["url"] ?: result.params["content"] ?: ""
+                if (url.startsWith("http")) {
+                    viewModelScope.launch {
+                        runCatching {
+                            val analysis = linkAnalyzer.analyze(url)
+                            val skillId = skillCreator.createFromText(
+                                name     = analysis.title.take(60).ifBlank { "Recurso web" },
+                                content  = "${analysis.metaDescription}\n${analysis.rawContent.take(600)}\nFuente: ${analysis.url}",
+                                category = "general",
+                                source   = "link"
+                            )
+                            if (skillId > 0) {
+                                _response.value = result.copy(
+                                    nextAction = "Analizado: '${analysis.title.take(50)}'\nSkill creado en base de conocimiento. Bridge profundizara el analisis.",
+                                    status     = "COMPLETADO"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Store conversational exchanges in history for multi-turn context
+            if (result.typeDetected in listOf("GREETING", "WEB_SEARCH", "SKILL_INFO", "AI_CHAT")) {
+                conversationHistory.add(text, result.nextAction)
             }
 
             _response.value = result
@@ -285,5 +318,9 @@ class NucleusViewModel @Inject constructor(
         _response.value = null
         _state.value = NucleusState.Idle
         voiceEngine.stopSpeaking()
+    }
+
+    fun clearConversation() {
+        conversationHistory.clear()
     }
 }

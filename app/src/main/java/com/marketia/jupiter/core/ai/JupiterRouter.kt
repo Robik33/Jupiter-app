@@ -14,23 +14,20 @@ class JupiterRouter @Inject constructor(
     private val toolRegistry: ToolRegistry,
     private val repository: JupiterRepository
 ) {
-    suspend fun route(userInput: String): JupiterResponse {
-        // Always try AI first — local only if no internet (IOException)
-        val result: RouterResult = try {
-            val raw = aiClient.call(userInput)
-            if (raw != null) parseAI(raw) else localRoute(userInput)
-        } catch (_: java.net.UnknownHostException) {
-            localRoute(userInput)   // No DNS → offline → local rules
-        } catch (_: java.net.SocketException) {
-            localRoute(userInput)   // Connection reset → offline
-        } catch (_: java.net.SocketTimeoutException) {
-            localRoute(userInput)   // Timeout → treat as offline
-        } catch (_: Exception) {
-            localRoute(userInput)   // Any other network failure
-        }
+    suspend fun route(
+        userInput: String,
+        history: List<Pair<String, String>> = emptyList()
+    ): JupiterResponse {
+        val raw: RouterResult = try {
+            val aiRaw = aiClient.call(userInput, history)
+            if (aiRaw != null) parseAI(aiRaw) else localRoute(userInput)
+        } catch (_: java.net.UnknownHostException) { localRoute(userInput) }
+          catch (_: java.net.SocketException)       { localRoute(userInput) }
+          catch (_: java.net.SocketTimeoutException){ localRoute(userInput) }
+          catch (_: Exception)                      { localRoute(userInput) }
 
-        // Side-effect: execute tool if action maps to one
-        handleSideEffect(result, userInput)
+        // Execute tool side-effects; returns updated result (fixes SEARCH discard bug)
+        val result = handleSideEffect(raw, userInput)
 
         return JupiterResponse(
             orderReceived = userInput,
@@ -71,23 +68,28 @@ class JupiterRouter @Inject constructor(
         )
     }
 
-    private suspend fun handleSideEffect(result: RouterResult, userInput: String) {
-        when (result.action) {
+    // Returns updated RouterResult (may have enriched response from tool execution)
+    private suspend fun handleSideEffect(result: RouterResult, userInput: String): RouterResult {
+        return when (result.action) {
             "SAVE_PROJECT" -> {
                 val name = result.params["name"] ?: userInput
-                repository.addProject(name, result.params["type"] ?: "proyecto", result.params["description"] ?: "")
+                runCatching { repository.addProject(name, result.params["type"] ?: "proyecto", result.params["description"] ?: "") }
+                result
             }
             "SAVE_SYSTEM" -> {
                 val name = result.params["name"] ?: userInput
-                repository.addSystem(name, result.params["type"] ?: "sistema", result.params["description"] ?: "")
+                runCatching { repository.addSystem(name, result.params["type"] ?: "sistema", result.params["description"] ?: "") }
+                result
             }
             "MEMORY_SAVE" -> {
-                repository.addProject(result.params["content"] ?: userInput, "nota", "Guardado por voz")
+                runCatching { repository.addProject(result.params["content"] ?: userInput, "nota", "Guardado por voz") }
+                result
             }
             "SEARCH" -> {
                 val res = runCatching { toolRegistry.webSearch.execute(result.params) }.getOrDefault("")
-                if (res.isNotBlank()) result.copy(response = res)
+                if (res.isNotBlank()) result.copy(response = res) else result
             }
+            else -> result
         }
     }
 
