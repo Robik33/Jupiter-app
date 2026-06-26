@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Environment
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.marketia.jupiter.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -142,7 +143,25 @@ class UpdateManager @Inject constructor(
         triggerInstall(destFile)
     }
 
+    fun canInstallPackages(): Boolean =
+        context.packageManager.canRequestPackageInstalls()
+
+    fun openInstallPermissionSettings() {
+        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+            .setData(Uri.parse("package:${context.packageName}"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+    }
+
     fun triggerInstall(file: File) {
+        if (!context.packageManager.canRequestPackageInstalls()) {
+            // Redirect to "Install unknown apps" settings for this app — user taps "Allow" once
+            openInstallPermissionSettings()
+            _state.value = UpdateState.Failed(
+                "Activa 'Instalar apps desconocidas' para JUPITER en Ajustes y vuelve a tocar INSTALAR."
+            )
+            return
+        }
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.provider",

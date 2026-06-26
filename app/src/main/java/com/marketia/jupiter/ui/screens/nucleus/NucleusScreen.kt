@@ -140,10 +140,12 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
                 exit    = fadeOut(tween(250)) + slideOutVertically(tween(250)) { it / 3 }
             ) {
                 response?.let { r ->
+                    val canInstall = viewModel.canInstallPackages()
                     JarvisResponseCard(
-                        response  = r,
-                        onDismiss = { viewModel.clearResponse() },
-                        onInstall = if (r.action == "OTA_READY") {
+                        response     = r,
+                        onDismiss    = { viewModel.clearResponse() },
+                        canInstall   = canInstall,
+                        onInstall    = if (r.action == "OTA_READY") {
                             {
                                 viewModel.installOTA(
                                     r.params["apkUrl"]     ?: "",
@@ -231,6 +233,7 @@ fun NucleusScreen(viewModel: NucleusViewModel = hiltViewModel()) {
 private fun JarvisResponseCard(
     response: JupiterResponse,
     onDismiss: () -> Unit,
+    canInstall: Boolean = true,
     onInstall: (() -> Unit)? = null
 ) {
     // Determine accent by intent
@@ -354,10 +357,19 @@ private fun JarvisResponseCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text       = "INSTALAR AHORA",
-                        fontSize   = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        text          = if (canInstall) "INSTALAR AHORA" else "ACTIVAR PERMISOS Y LUEGO INSTALAR",
+                        fontSize      = 12.sp,
+                        fontWeight    = FontWeight.Bold,
                         letterSpacing = 1.sp
+                    )
+                }
+                if (!canInstall) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Ajustes → Apps → JUPITER → Instalar apps desconocidas → Permitir",
+                        color     = accent.copy(alpha = 0.7f),
+                        fontSize  = 10.sp,
+                        lineHeight = 14.sp
                     )
                 }
             }

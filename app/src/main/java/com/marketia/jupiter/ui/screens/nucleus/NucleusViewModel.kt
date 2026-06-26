@@ -12,6 +12,7 @@ import com.marketia.jupiter.core.oracle.OracleHermesClient
 import com.marketia.jupiter.core.oracle.OracleState
 import com.marketia.jupiter.core.update.UpdateManager
 import com.marketia.jupiter.core.update.UpdateManifest
+import com.marketia.jupiter.core.update.UpdateState
 import com.marketia.jupiter.data.entity.PromptInboxEntity
 import com.marketia.jupiter.data.repository.JupiterRepository
 import com.marketia.jupiter.data.settings.SettingsRepository
@@ -95,6 +96,31 @@ class NucleusViewModel @Inject constructor(
                         status        = "COMPLETADO",
                         action        = "OTA_READY",
                         params        = mapOf("apkUrl" to done.apkUrl, "releaseUrl" to done.releaseUrl)
+                    )
+                }
+            }
+        }
+        // Auto-check published release 8s after launch
+        viewModelScope.launch {
+            delay(8_000L)
+            runCatching { updateManager.checkForUpdate() }
+        }
+        // React to published release being available → show OTA card on main screen
+        viewModelScope.launch {
+            updateManager.state.collect { s ->
+                if (s is UpdateState.Available && !otaShown) {
+                    otaShown = true
+                    _response.value = JupiterResponse(
+                        orderReceived = "update_check",
+                        typeDetected  = "BUILD_COMPLETE",
+                        nextAction    = "Version v${s.manifest.versionName} disponible. Toca INSTALAR AHORA — todo automatico.",
+                        status        = "COMPLETADO",
+                        action        = "OTA_READY",
+                        params        = mapOf(
+                            "apkUrl"     to s.manifest.apkUrl,
+                            "sha256"     to s.manifest.sha256,
+                            "releaseUrl" to s.manifest.releaseUrl
+                        )
                     )
                 }
             }
@@ -233,7 +259,12 @@ class NucleusViewModel @Inject constructor(
     }
 
     fun installOTA(apkUrl: String, sha256: String, releaseUrl: String) {
+        if (!updateManager.canInstallPackages()) {
+            updateManager.openInstallPermissionSettings()
+            return
+        }
         viewModelScope.launch {
+            otaShown = false  // allow re-show after install completes
             val manifest = UpdateManifest(
                 versionCode = Int.MAX_VALUE,
                 versionName = "auto",
@@ -247,6 +278,8 @@ class NucleusViewModel @Inject constructor(
             runCatching { updateManager.downloadAndInstall(manifest) }
         }
     }
+
+    fun canInstallPackages(): Boolean = updateManager.canInstallPackages()
 
     fun clearResponse() {
         _response.value = null
