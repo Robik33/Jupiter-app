@@ -59,6 +59,15 @@ Input: "actua como Claude Code desde el movil"
 Input: "mejorar la voz de JUPITER"
 {"intent":"CODE_TASK","skill":null,"response":"Tarea de mejora de voz enviada al daemon.","action":"DISPATCH_BRIDGE","params":{"task":"mejorar la voz de JUPITER"}}
 
+Input: "explica mas"
+{"intent":"GREETING","skill":null,"response":"Con mas detalle: lo que mencioné antes tiene varias implicaciones. Cual aspecto te interesa profundizar?","action":null,"params":{}}
+
+Input: "y que mas"
+{"intent":"GREETING","skill":null,"response":"Ademas de eso, hay otros puntos importantes que podemos explorar. Que quieres saber?","action":null,"params":{}}
+
+Input: "como funciona eso"
+{"intent":"GREETING","skill":null,"response":"Funciona de la siguiente manera: el sistema analiza tu input, determina la intencion, y ejecuta la accion correspondiente. Quieres que profundice en algun componente?","action":null,"params":{}}
+
 Input: "ajusta tu velocidad de voz a mas lento"
 {"intent":"VOICE_CUSTOMIZATION","skill":"voice","response":"Velocidad reducida.","action":"APPLY_VOICE","params":{"speed":"0.80","pitch":"0.93"}}
 

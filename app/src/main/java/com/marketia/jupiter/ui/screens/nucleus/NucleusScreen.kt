@@ -13,8 +13,10 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
@@ -239,6 +241,7 @@ private fun JarvisResponseCard(
     // Determine accent by intent
     val accent = when {
         response.typeDetected == "MULTI_PLAN"                                              -> Color(0xFFFFAB40)
+        response.typeDetected == "SELF_EVAL"                                               -> Color(0xFFFFD54F)
         response.typeDetected.contains("CODE") || response.typeDetected.contains("BUILD") -> Color(0xFF7C4DFF)
         response.typeDetected.contains("SKILL") || response.typeDetected.contains("CREATE") -> JupiterGreen
         response.typeDetected.contains("INGEST") || response.typeDetected.contains("LINK") -> Color(0xFF00E5FF)
@@ -249,6 +252,7 @@ private fun JarvisResponseCard(
         response.typeDetected == "UNKNOWN" -> JupiterGray
         else -> JupiterCyan
     }
+    val isLongResponse = response.nextAction.length > 300
 
     val statusSymbol = when (response.status) {
         "EJECUTANDO"  -> "◉"
@@ -319,14 +323,20 @@ private fun JarvisResponseCard(
 
             Spacer(Modifier.height(14.dp))
 
-            // Response text — main element
-            Text(
-                text       = response.nextAction,
-                color      = JupiterWhite,
-                fontSize   = 15.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Normal
-            )
+            // Response text — scrollable for long content (SELF_EVAL reports etc.)
+            val scrollState = rememberScrollState()
+            Box(
+                modifier = if (isLongResponse) Modifier.heightIn(max = 240.dp).verticalScroll(scrollState)
+                           else Modifier
+            ) {
+                Text(
+                    text       = response.nextAction,
+                    color      = JupiterWhite,
+                    fontSize   = if (isLongResponse) 12.sp else 15.sp,
+                    lineHeight = if (isLongResponse) 18.sp else 22.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
 
             Spacer(Modifier.height(18.dp))
 
