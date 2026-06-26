@@ -6,6 +6,7 @@ import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.core.VoiceEngine
 import com.marketia.jupiter.core.ai.ConversationHistory
 import com.marketia.jupiter.core.ai.JupiterRouter
+import com.marketia.jupiter.core.evaluation.SelfEvaluationEngine
 import com.marketia.jupiter.core.bridge.PromptBridgeService
 import com.marketia.jupiter.core.ingestion.LinkAnalyzer
 import com.marketia.jupiter.core.orchestrator.JupiterOrchestrator
@@ -48,7 +49,8 @@ class NucleusViewModel @Inject constructor(
     private val skillCreator: SkillCreatorEngine,
     private val updateManager: UpdateManager,
     private val conversationHistory: ConversationHistory,
-    private val linkAnalyzer: LinkAnalyzer
+    private val linkAnalyzer: LinkAnalyzer,
+    private val selfEvalEngine: SelfEvaluationEngine
 ) : ViewModel() {
 
     private val _state        = MutableStateFlow<NucleusState>(NucleusState.Idle)
@@ -72,8 +74,15 @@ class NucleusViewModel @Inject constructor(
         viewModelScope.launch {
             repository.seedIfEmpty()
             val s = settingsRepository.getCurrentSettings()
-            voiceEngine.setSpeed(s.voiceSpeed)
-            voiceEngine.setPitch(s.voicePitch)
+            // Auto-optimize voice on first launch (defaults 1.0f → Jarvis-like 0.85f/0.93f)
+            val speed = if (s.voiceSpeed == 1.0f) 0.85f else s.voiceSpeed
+            val pitch = if (s.voicePitch == 1.0f) 0.93f else s.voicePitch
+            if (speed != s.voiceSpeed || pitch != s.voicePitch) {
+                settingsRepository.setVoiceSpeed(speed)
+                settingsRepository.setVoicePitch(pitch)
+            }
+            voiceEngine.setSpeed(speed)
+            voiceEngine.setPitch(pitch)
             syncBridgeResults()
         }
         // Poll ORACLE + bridge sync every 60 seconds
@@ -219,9 +228,43 @@ class NucleusViewModel @Inject constructor(
                 }
             }
 
-            // DISPATCH_BRIDGE: CODE_TASK, INGEST_LINK, AI_CHAT → send to daemon via bridge
-            if (result.action == "DISPATCH_BRIDGE" ||
-                result.typeDetected in listOf("CODE_TASK", "INGEST_LINK", "AI_CHAT")) {
+            // SELF_EVAL: run SelfEvaluationEngine and display formatted report
+            if (result.typeDetected == "SELF_EVAL" || result.action == "RUN_SELF_EVAL") {
+                viewModelScope.launch {
+                    runCatching {
+                        val report = selfEvalEngine.evaluate()
+                        val formatted = buildString {
+                            appendLine("JUPITER v${report.version} — Autodiagnostico")
+                            appendLine()
+                            appendLine("Modulos activos: ${report.activeModules.size}")
+                            report.activeModules.forEach { appendLine("  · $it") }
+                            appendLine()
+                            appendLine("Skills en DB: ${report.memoryStats.totalSkills}")
+                            appendLine("Proyectos: ${report.memoryStats.totalProjects}")
+                            appendLine("Agentes: ${report.memoryStats.totalAgents}")
+                            appendLine()
+                            if (report.detectedIssues.isNotEmpty()) {
+                                appendLine("Issues:")
+                                report.detectedIssues.forEach { issue ->
+                                    appendLine("  [${issue.severity}] ${issue.module}: ${issue.description}")
+                                }
+                                appendLine()
+                            }
+                            if (report.recommendations.isNotEmpty()) {
+                                appendLine("Recomendaciones:")
+                                report.recommendations.forEach { appendLine("  → $it") }
+                            }
+                        }
+                        _response.value = result.copy(
+                            nextAction = formatted.trim(),
+                            status = "COMPLETADO"
+                        )
+                    }
+                }
+            }
+
+            // DISPATCH_BRIDGE: only when explicitly flagged by action (fixes AI_CHAT over-dispatch)
+            if (result.action == "DISPATCH_BRIDGE") {
                 runCatching {
                     repository.submitTask(text.take(80), text, "HIGH")
                     val queueId = promptBridgeService.createAndQueue(text, inputSource)
@@ -261,7 +304,7 @@ class NucleusViewModel @Inject constructor(
             }
 
             // Store conversational exchanges in history for multi-turn context
-            if (result.typeDetected in listOf("GREETING", "WEB_SEARCH", "SKILL_INFO", "AI_CHAT")) {
+            if (result.typeDetected in listOf("GREETING", "WEB_SEARCH", "SKILL_INFO", "AI_CHAT", "SELF_EVAL")) {
                 conversationHistory.add(text, result.nextAction)
             }
 

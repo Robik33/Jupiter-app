@@ -9,10 +9,11 @@ data class JupiterResponse(
     val params: Map<String, String> = emptyMap()
 ) {
     fun toSpokenText(): String = when (typeDetected) {
-        "AI_CHAT"      -> "Consulta enviada."
-        "MULTI_PLAN"   -> "Plan creado."
+        "AI_CHAT"        -> "Consulta enviada."
+        "MULTI_PLAN"     -> "Plan creado."
         "BUILD_COMPLETE" -> "Build listo."
-        else           -> nextAction.take(120)
+        "SELF_EVAL"      -> "Autodiagnostico completo."
+        else             -> nextAction.take(120)
     }
 }
 
@@ -30,6 +31,16 @@ object JupiterBrain {
     fun process(input: String): JupiterResponse {
         val text = normalizeText(input.lowercase().trim())
         return when {
+            // Self-evaluation / capability query
+            isSelfEval(text) -> resp(input, "SELF_EVAL",
+                "Iniciando autodiagnostico...",
+                "RUN_SELF_EVAL", emptyMap())
+
+            // Self-reprogramming → CODE_TASK via bridge (before generic code tasks)
+            isReprogramate(text) -> resp(input, "CODE_TASK",
+                "Iniciando autoprogramacion segura: Issue → build → release → instalacion.",
+                "DISPATCH_BRIDGE", mapOf("task" to input, "category" to "self_programming"))
+
             // Voice improvement -> CODE_TASK via bridge (checked before TTS local)
             isVoiceImprovement(text) -> resp(input, "CODE_TASK",
                 "Entendido. Voy a modificar la voz - el daemon se encargara.",
@@ -150,6 +161,23 @@ object JupiterBrain {
                 }
             }.joinToString("")
         }
+
+    private fun isSelfEval(text: String): Boolean {
+        val phrases = listOf(
+            "que puedes hacer", "que sabes hacer", "autodiagnostico", "diagnostico",
+            "evaluat", "evalua", "que eres capaz", "capacidades",
+            "que haces", "funcionalidades", "herramientas tienes", "que sabes"
+        )
+        return phrases.any { text.contains(it) }
+    }
+
+    private fun isReprogramate(text: String): Boolean {
+        val phrases = listOf(
+            "reprogramate", "reprograma", "autoprograma", "programa tu",
+            "mejora tu nucleo", "mejora tu propio", "cambia tu codigo", "modifica tu codigo"
+        )
+        return phrases.any { text.contains(it) }
+    }
 
     private fun isVoiceImprovement(text: String): Boolean {
         val voiceWords = listOf("voz", "tts", "hablas", "suenas", "sonar", "speech", "hablar")

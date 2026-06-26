@@ -4,6 +4,7 @@ import com.marketia.jupiter.core.JupiterBrain
 import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.core.registry.ToolRegistry
 import com.marketia.jupiter.data.repository.JupiterRepository
+import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,8 +19,15 @@ class JupiterRouter @Inject constructor(
         userInput: String,
         history: List<Pair<String, String>> = emptyList()
     ): JupiterResponse {
+        // Inject top skills as context so AI knows what knowledge is available
+        val skillContext = runCatching {
+            val names = repository.skills.first().take(8).map { it.name }
+            if (names.isNotEmpty()) "[Skills en base de conocimiento: ${names.joinToString(", ")}]" else ""
+        }.getOrDefault("")
+        val enrichedInput = if (skillContext.isNotBlank()) "$skillContext\n$userInput" else userInput
+
         val raw: RouterResult = try {
-            val aiRaw = aiClient.call(userInput, history)
+            val aiRaw = aiClient.call(enrichedInput, history)
             if (aiRaw != null) parseAI(aiRaw) else localRoute(userInput)
         } catch (_: java.net.UnknownHostException) { localRoute(userInput) }
           catch (_: java.net.SocketException)       { localRoute(userInput) }

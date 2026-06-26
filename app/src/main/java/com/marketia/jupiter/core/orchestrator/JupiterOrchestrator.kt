@@ -125,7 +125,8 @@ class JupiterOrchestrator @Inject constructor(
         val lower = command.lowercase()
         val complexVerbs = listOf(
             "hazte", "se mas", "vuelvete", "mejorate", "transforma",
-            "convierte", "evoluciona", "conviertete", "hazme", "hazlo"
+            "convierte", "evoluciona", "conviertete", "hazme", "hazlo",
+            "reprogramate", "reprograma", "autoprograma"
         )
         val openTargets = listOf(
             "jarvis", "mejor asistente", "mas capaz", "mas inteligente",
