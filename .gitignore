@@ -31,3 +31,7 @@ replay_pid*.log
 
 # Daemon config (contains secrets)
 scripts/jupiter_config.json
+
+# Planning docs and CI workflows (managed separately)
+JUPITER_REBOOT_MASTER.md
+.github/workflows/
