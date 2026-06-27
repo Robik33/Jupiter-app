@@ -2,16 +2,16 @@ package com.marketia.jupiter.core.ai
 
 import com.marketia.jupiter.core.JupiterBrain
 import com.marketia.jupiter.core.JupiterResponse
+import com.marketia.jupiter.core.engine.ProviderRouter
 import com.marketia.jupiter.core.registry.ToolRegistry
 import com.marketia.jupiter.data.repository.JupiterRepository
-import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class JupiterRouter @Inject constructor(
-    private val aiClient: JupiterAIClient,
+    private val providerRouter: ProviderRouter,
     private val toolRegistry: ToolRegistry,
     private val repository: JupiterRepository
 ) {
@@ -19,20 +19,12 @@ class JupiterRouter @Inject constructor(
         userInput: String,
         history: List<Pair<String, String>> = emptyList()
     ): JupiterResponse {
-        // Inject top skills as context so AI knows what knowledge is available
-        val skillContext = runCatching {
-            val names = repository.skills.first().take(8).map { it.name }
-            if (names.isNotEmpty()) "[Skills en base de conocimiento: ${names.joinToString(", ")}]" else ""
-        }.getOrDefault("")
-        val enrichedInput = if (skillContext.isNotBlank()) "$skillContext\n$userInput" else userInput
-
+        // ProviderRouter handles the full fallback chain: OpenRouter → Claude → Gemini → DeepSeek → Local
+        // No more "sin conexión" dead-ends — local fallback always returns valid JSON
         val raw: RouterResult = try {
-            val aiRaw = aiClient.call(enrichedInput, history)
-            if (aiRaw != null) parseAI(aiRaw) else localRoute(userInput)
-        } catch (_: java.net.UnknownHostException) { localRoute(userInput) }
-          catch (_: java.net.SocketException)       { localRoute(userInput) }
-          catch (_: java.net.SocketTimeoutException){ localRoute(userInput) }
-          catch (_: Exception)                      { localRoute(userInput) }
+            val providerResult = providerRouter.complete(userInput, history)
+            parseAI(providerResult.text)
+        } catch (_: Exception) { localRoute(userInput) }
 
         // Execute tool side-effects; returns updated result (fixes SEARCH discard bug)
         val result = handleSideEffect(raw, userInput)
@@ -111,18 +103,10 @@ class JupiterRouter @Inject constructor(
         return obj.keys().asSequence().associateWith { obj.optString(it) }
     }
 
-    private fun noProviderResult() = RouterResult(
-        intent   = "CONFIG",
-        skill    = null,
-        response = "Sin clave IA activa. Obtén tu clave gratuita en openrouter.ai y añádela en JÚPITER → Configuración.",
-        action   = "OPEN_SETTINGS",
-        params   = emptyMap()
-    )
-
     private fun unknownResult() = RouterResult(
-        intent = "UNKNOWN", skill = null,
-        response = "Sin conexión. Comandos offline: 'crear skill', 'mejorar algo', o pega un enlace.",
-        action = "CLARIFY", params = emptyMap()
+        intent = "AI_CHAT", skill = null,
+        response = "Procesando consulta...",
+        action = "DISPATCH_BRIDGE", params = emptyMap()
     )
 
     data class RouterResult(

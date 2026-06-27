@@ -6,6 +6,8 @@ import com.marketia.jupiter.core.JupiterResponse
 import com.marketia.jupiter.core.VoiceEngine
 import com.marketia.jupiter.core.ai.ConversationHistory
 import com.marketia.jupiter.core.ai.JupiterRouter
+import com.marketia.jupiter.core.engine.UnifiedCoreEngine
+import com.marketia.jupiter.core.engine.ToolSelector
 import com.marketia.jupiter.core.evaluation.SelfEvaluationEngine
 import com.marketia.jupiter.core.bridge.PromptBridgeService
 import com.marketia.jupiter.core.ingestion.LinkAnalyzer
@@ -50,7 +52,9 @@ class NucleusViewModel @Inject constructor(
     private val updateManager: UpdateManager,
     private val conversationHistory: ConversationHistory,
     private val linkAnalyzer: LinkAnalyzer,
-    private val selfEvalEngine: SelfEvaluationEngine
+    private val selfEvalEngine: SelfEvaluationEngine,
+    private val unifiedCore: UnifiedCoreEngine,
+    private val toolSelector: ToolSelector
 ) : ViewModel() {
 
     private val _state        = MutableStateFlow<NucleusState>(NucleusState.Idle)
@@ -204,7 +208,7 @@ class NucleusViewModel @Inject constructor(
                 return@launch
             }
 
-            val result = router.route(text, conversationHistory.get())
+            val result = unifiedCore.process(text)
 
             // Handle APPLY_VOICE immediately in ViewModel
             if (result.action == "APPLY_VOICE") {
@@ -301,11 +305,6 @@ class NucleusViewModel @Inject constructor(
                         }
                     }
                 }
-            }
-
-            // Store conversational exchanges in history for multi-turn context
-            if (result.typeDetected in listOf("GREETING", "WEB_SEARCH", "SKILL_INFO", "AI_CHAT", "SELF_EVAL")) {
-                conversationHistory.add(text, result.nextAction)
             }
 
             _response.value = result
